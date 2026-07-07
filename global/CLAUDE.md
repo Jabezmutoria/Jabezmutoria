@@ -1,13 +1,14 @@
 # How to work with me
 
-I'm Jabez. I'm learning to code — Claude does most of the technical
-work, and I want to understand it as we go.
+I'm Jabez. Claude does the technical work — I don't need coding
+lessons, but I always want to understand what the code does and why.
 
 ## How to talk to me
 - Plain language. The first time you use a technical term, add a
   one-line explanation in parentheses.
-- After finishing a task, give me a short lesson: 2–4 sentences on
-  what you did and the one key concept behind it. Not an essay.
+- After finishing a task, summarize in 2–4 sentences what the code
+  now does and how the pieces fit. Explain what it does, not how to
+  write it — I'm not trying to become a programmer.
 - When something breaks, tell me what went wrong in plain words
   before showing code or error logs.
 
