@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spatial Portal — Head-Tracked Perspective</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --panel-bg: rgba(14, 14, 16, 0.92);
+            --accent-color: #ffffff;
+            --text-color: #ffffff;
+            --hud-accent: #00ffcc;
+            --ok: #00ff6a;
+            --warn: #ff00aa;
+        }
+        [data-theme="light"] {
+            --bg-color: #ffffff;
+            --panel-bg: rgba(244, 244, 246, 0.95);
+            --accent-color: #000000;
+            --text-color: #000000;
+            --hud-accent: #007a66;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: "Courier New", Courier, monospace;
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            -webkit-font-smoothing: antialiased;
+        }
+        #canvas-container { width: 100vw; height: 100vh; display: block; cursor: grab; }
+        #canvas-container.dragging { cursor: grabbing; }
+
+        #ui-toggle-btn {
+            position: absolute; top: 20px; right: 20px; z-index: 200;
+            background: var(--panel-bg); border: 1px solid var(--accent-color);
+            color: var(--text-color); width: 42px; height: 42px; border-radius: 6px;
+            cursor: pointer; font-size: 20px; display: flex; align-items: center;
+            justify-content: center; transition: all 0.2s;
+        }
+        #ui-toggle-btn:hover { background: var(--accent-color); color: var(--bg-color); }
+        #ui-toggle-btn:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: 2px; }
+
+        #controls-panel {
+            position: absolute; top: 74px; right: 20px; background: var(--panel-bg);
+            border: 1px solid var(--accent-color); padding: 16px; border-radius: 6px;
+            z-index: 100; text-align: left; box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+            width: 300px; max-height: 84vh; overflow-y: auto;
+            transition: opacity 0.25s ease, transform 0.25s ease; transform-origin: top right;
+            backdrop-filter: blur(8px);
+        }
+        #controls-panel.hidden { opacity: 0; pointer-events: none; transform: scale(0.96); }
+        #controls-panel::-webkit-scrollbar { width: 8px; }
+        #controls-panel::-webkit-scrollbar-thumb { background: var(--accent-color); opacity: 0.3; border-radius: 4px; }
+
+        .section-title {
+            font-size: 12px; font-weight: bold; letter-spacing: 1px; margin: 16px 0 8px 0;
+            border-bottom: 1px solid var(--accent-color); padding-bottom: 5px; display: block; opacity: 0.75;
+        }
+        .section-title:first-child { margin-top: 0; }
+
+        input[type="file"] { display: none; }
+
+        .btn {
+            display: block; width: 100%; background: rgba(128,128,128,0.08);
+            border: 1px solid var(--accent-color); color: var(--text-color);
+            padding: 9px 12px; cursor: pointer; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 0.5px; transition: all 0.2s; margin-bottom: 8px; text-align: center;
+            font-family: inherit; border-radius: 3px;
+        }
+        .btn:hover { background: var(--accent-color); color: var(--bg-color); }
+        .btn:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: 2px; }
+
+        select {
+            width: 100%; background: var(--bg-color); color: var(--text-color);
+            border: 1px solid var(--accent-color); padding: 7px; margin-bottom: 8px;
+            font-family: monospace; font-size: 11px; border-radius: 3px;
+        }
+        .control-group { margin-bottom: 12px; font-size: 11px; }
+        .control-group label { display: flex; justify-content: space-between; margin-bottom: 5px; opacity: 0.9; }
+        .control-group .val { color: var(--hud-accent); font-weight: bold; }
+        input[type="range"] { width: 100%; accent-color: var(--hud-accent); cursor: pointer; }
+
+        .toggle-row {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 10px; margin-top: 10px; font-size: 11px; letter-spacing: 0.5px;
+        }
+        input[type="checkbox"] { accent-color: var(--hud-accent); cursor: pointer; width: 16px; height: 16px; }
+
+        .hint {
+            font-size: 10px; opacity: 0.55; line-height: 1.5; margin-top: 6px;
+            border-left: 2px solid var(--hud-accent); padding-left: 8px;
+        }
+
+        #camera-container {
+            position: absolute; bottom: 20px; left: 20px; width: 250px; z-index: 100;
+            border-radius: 6px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            border: 1px solid var(--accent-color); transition: opacity 0.3s;
+        }
+        #camera-container.collapsed { width: 60px; }
+        #camera-container.collapsed #stats-overlay { display: none; }
+        #input-video { width: 100%; background: #000; transform: scaleX(-1); display: block; opacity: 0.92; }
+
+        #cam-toggle {
+            position: absolute; top: 6px; right: 6px; z-index: 3; width: 24px; height: 24px;
+            background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.3); color: #fff;
+            border-radius: 3px; cursor: pointer; font-size: 12px; line-height: 1;
+        }
+
+        #stats-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: rgba(0,0,0,0.78); padding: 8px; color: var(--hud-accent);
+            font-size: 10px; font-family: monospace; border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .hud-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .hud-label { opacity: 0.65; color: #fff; }
+        .hud-val { font-weight: bold; }
+
+        #hand-indicator {
+            text-align: center; margin-bottom: 6px; padding-bottom: 6px;
+            border-bottom: 1px dashed rgba(255,255,255,0.2); font-weight: bold;
+            color: #666; transition: color 0.15s; letter-spacing: 1px;
+        }
+        #hand-indicator.rotate { color: var(--ok); }
+        #hand-indicator.zoom { color: var(--warn); }
+        #hand-indicator.lock { color: #ffcc00; }
+
+        #source-badge {
+            position: absolute; top: 6px; left: 6px; z-index: 3; font-size: 9px;
+            padding: 2px 6px; background: rgba(0,0,0,0.6); border-radius: 3px;
+            letter-spacing: 1px; color: var(--hud-accent);
+        }
+
+        #loading-overlay {
+            position: absolute; inset: 0; background: var(--bg-color); color: var(--accent-color);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .spinner {
+            width: 42px; height: 42px; border: 2px solid var(--accent-color);
+            border-top: 2px solid transparent; border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #status-text { font-size: 12px; letter-spacing: 1px; opacity: 0.85; }
+        #sub-status { font-size: 10px; opacity: 0.5; margin-top: 8px; max-width: 300px; text-align: center; }
+
+        #toast {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
+            background: var(--panel-bg); border: 1px solid var(--hud-accent); color: var(--text-color);
+            padding: 10px 18px; border-radius: 6px; font-size: 11px; letter-spacing: 0.5px; z-index: 300;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.3s; max-width: 80vw;
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after { transition-duration: 0.01ms !important; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="status-text">Initializing spatial engine…</div>
+        <div id="sub-status"></div>
+    </div>
+
+    <div id="toast"></div>
+
+    <button id="ui-toggle-btn" title="Toggle settings (Tab)" aria-label="Toggle settings panel">≡</button>
+
+    <div id="controls-panel">
+        <span class="section-title">CAMERA INPUT</span>
+        <select id="camera-select" aria-label="Camera source">
+            <option value="" disabled selected>Detecting cameras…</option>
+        </select>
+        <button id="cam-retry" class="btn">Enable / retry camera</button>
+        <div id="cam-status" class="hint" style="display:none;"></div>
+
+        <span class="section-title">ENVIRONMENT</span>
+        <select id="scene-select" aria-label="Environment template">
+            <optgroup label="Abstract">
+                <option value="grid">Infinity Grid</option>
+                <option value="targets">Target Practice (Demo)</option>
+                <option value="void">Void (360° background only)</option>
+            </optgroup>
+            <optgroup label="Architecture &amp; Real Estate">
+                <option value="apartment">Empty Apartment (Staging)</option>
+                <option value="gallery">Modern Gallery</option>
+                <option value="loft">Industrial Loft</option>
+            </optgroup>
+            <optgroup label="Atmosphere">
+                <option value="backrooms">The Backrooms — Hall</option>
+            </optgroup>
+        </select>
+
+        <label class="btn">Load 360° background (JPG/PNG)
+            <input type="file" id="bg-input" accept=".jpg,.jpeg,.png" />
+        </label>
+        <div class="control-group">
+            <label>360° resolution <span class="val" id="val-bgres">2048</span></label>
+            <select id="bg-res" aria-label="Background resolution">
+                <option value="1024">1024 — fastest</option>
+                <option value="2048" selected>2048 — balanced</option>
+                <option value="4096">4096 — sharp</option>
+                <option value="0">Original — no downscale</option>
+            </select>
+        </div>
+        <label class="btn">Load 3D model (.glb / .obj)
+            <input type="file" id="file-input" accept=".glb,.gltf,.obj" />
+        </label>
+        <button id="clear-objects" class="btn">Clear loaded model</button>
+
+        <span class="section-title">MODEL TRANSFORM</span>
+        <div class="control-group">
+            <label>Scale <span class="val" id="val-scale">1.0</span></label>
+            <input type="range" id="input-scale" min="0.1" max="10.0" step="0.1" value="1.0" />
+        </div>
+        <div class="control-group">
+            <label>Depth (Z) <span class="val" id="val-posz">-6.0</span></label>
+            <input type="range" id="input-posz" min="-40.0" max="2.0" step="0.5" value="-6.0" />
+        </div>
+        <div class="control-group">
+            <label>Auto-spin speed <span class="val" id="val-rot-speed">0.005</span></label>
+            <input type="range" id="input-rot-speed" min="0" max="0.05" step="0.001" value="0.005" />
+        </div>
+
+        <span class="section-title">TRACKING FEEL</span>
+        <div class="control-group">
+            <label>Parallax strength <span class="val" id="val-parallax">1.0</span></label>
+            <input type="range" id="input-parallax" min="0.2" max="2.5" step="0.1" value="1.0" />
+        </div>
+        <div class="control-group">
+            <label>Smoothing <span class="val" id="val-smooth">Balanced</span></label>
+            <input type="range" id="input-smooth" min="0" max="2" step="1" value="1" />
+        </div>
+
+
+
+        <span class="section-title">HAND GESTURES</span>
+        <div class="toggle-row"><span>ENABLE GESTURES</span><input type="checkbox" id="gestures-toggle" checked /></div>
+        <div class="hint">Open palm + swipe = rotate model · Pinch (thumb+index, other fingers up) + raise/lower = zoom · Fist = lock.</div>
+
+        <span class="section-title">SYSTEM</span>
+        <div class="toggle-row"><span>DARK MODE</span><input type="checkbox" id="theme-toggle" checked /></div>
+        <div class="toggle-row"><span>AUTO-SPIN MODEL</span><input type="checkbox" id="rotate-toggle" /></div>
+        <div class="toggle-row"><span>SHOW FPS</span><input type="checkbox" id="fps-toggle" checked /></div>
+    </div>
+
+    <div id="camera-container">
+        <div id="source-badge">CAM</div>
+        <button id="cam-toggle" title="Collapse preview">–</button>
+        <video id="input-video" playsinline autoplay muted></video>
+        <div id="stats-overlay">
+            <div id="hand-indicator">GESTURE: OFF</div>
+            <div class="hud-row"><span class="hud-label">HEAD</span><span class="hud-val">X:<span id="hx">0</span> Y:<span id="hy">0</span> Z:<span id="hz">0</span></span></div>
+
+            <div class="hud-row"><span class="hud-label">PERF</span><span class="hud-val"><span id="fps">0</span> FPS</span></div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
+    <script type="module">
+        import * as THREE from "three";
+        import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+        import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+        import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+
+        /* ------------------------------------------------------------------ */
+        /*  CONFIG                                                             */
+        /* ------------------------------------------------------------------ */
+        const CONFIG = {
+            movementScale: 22,      // how far head XY maps into world units
+            focalLength: 20,        // virtual distance from eye to screen-plane
+            windowHeight: 10,       // virtual window size (world units)
+            baseObjectZ: -6,
+            gestureSwipeGain: 1.5,
+            gestureZoomGain: 4.0,
+        };
+
+        // Smoothing presets: [minCutoff, beta]  (One Euro filter)
+        // lower minCutoff  = more smoothing at rest (less jitter)
+        // higher beta      = more responsive during fast motion (less lag)
+        const SMOOTH_PRESETS = {
+            0: { label: "Silky",    min: 0.6, beta: 0.007 },
+            1: { label: "Balanced", min: 1.2, beta: 0.02  },
+            2: { label: "Snappy",   min: 2.5, beta: 0.05  },
+        };
+
+        /* ------------------------------------------------------------------ */
+        /*  ONE EURO FILTER — jitter-free, low-lag smoothing                  */
+        /* ------------------------------------------------------------------ */
+        class OneEuro {
+            constructor(minCutoff = 1.2, beta = 0.02, dCutoff = 1.0) {
+                this.minCutoff = minCutoff; this.beta = beta; this.dCutoff = dCutoff;
+                this.x = null; this.dx = 0; this.t = null;
+            }
+            _alpha(cutoff, dt) { const tau = 1 / (2 * Math.PI * cutoff); return 1 / (1 + tau / dt); }
+            reset() { this.x = null; this.dx = 0; this.t = null; }
+            setTuning(min, beta) { this.minCutoff = min; this.beta = beta; }
+            filter(v, t) {
+                if (this.t === null) { this.t = t; this.x = v; return v; }
+                const dt = Math.max(1e-3, (t - this.t) / 1000);
+                const dxRaw = (v - this.x) / dt;
+                const aD = this._alpha(this.dCutoff, dt);
+                this.dx = aD * dxRaw + (1 - aD) * this.dx;
+                const cutoff = this.minCutoff + this.beta * Math.abs(this.dx);
+                const a = this._alpha(cutoff, dt);
+                this.x = a * v + (1 - a) * this.x;
+                this.t = t;
+                return this.x;
+            }
+        }
+
+        const filt = {
+            x: new OneEuro(), y: new OneEuro(), z: new OneEuro(),
+            handX: new OneEuro(1.0, 0.01), pinchY: new OneEuro(1.0, 0.01),
+        };
+        function applySmoothing(idx) {
+            const p = SMOOTH_PRESETS[idx];
+            filt.x.setTuning(p.min, p.beta);
+            filt.y.setTuning(p.min, p.beta);
+            filt.z.setTuning(p.min * 0.8, p.beta);
+        }
+
+        /* ------------------------------------------------------------------ */
+        /*  STATE                                                             */
+        /* ------------------------------------------------------------------ */
+        let scene, camera, renderer, worldGroup, environmentGroup, objectContainer, targetObject;
+        let currentObjectUrl = null, currentBgUrl = null, currentBgTexture = null;
+
+        // head-tracked eye offset (smoothed, world units)
+        const headTarget = new THREE.Vector3(0, 0, 20);
+        const headPos = new THREE.Vector3(0, 0, 20);
+
+
+
+        let currentScene = "grid";
+        let isRotating = false, enableGestures = true, theme = "dark";
+        let manualObjectZ = CONFIG.baseObjectZ, objectRotationSpeed = 0.005;
+        let parallaxStrength = 1.0, smoothIndex = 1;
+        let isVideoRunning = false, faceEverDetected = false, lastFaceTime = 0;
+        let mouseTarget = null; // fallback control
+
+        /* ------------------------------------------------------------------ */
+        /*  GESTURE STATE MACHINE — disambiguated, debounced, no snapping     */
+        /* ------------------------------------------------------------------ */
+        const Gesture = { NONE: "none", ROTATE: "rotate", ZOOM: "zoom", LOCK: "lock" };
+        const gest = {
+            committed: Gesture.NONE,
+            candidate: Gesture.NONE,
+            candidateFrames: 0,
+            pinchActive: false,           // hysteresis latch
+            prevHandX: null,
+            spinVelocity: 0,              // inertial rotation
+            zoomStartY: 0,
+            zoomStartScale: 1,
+            targetScale: 1,
+        };
+        const COMMIT_FRAMES = 3;          // frames a candidate must persist before it takes over
+        const PINCH_ENTER = 0.34;         // normalized pinch distance to engage
+        const PINCH_EXIT = 0.48;          // larger = must open wider to disengage (hysteresis)
+
+        /* ------------------------------------------------------------------ */
+        /*  LOADERS (persistent)                                              */
+        /* ------------------------------------------------------------------ */
+        const objLoader = new OBJLoader();
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/");
+        const gltfLoader = new GLTFLoader();
+        gltfLoader.setDRACOLoader(dracoLoader);
+        const textureLoader = new THREE.TextureLoader();
+
+        /* ------------------------------------------------------------------ */
+        /*  DOM                                                               */
+        /* ------------------------------------------------------------------ */
+        const $ = (id) => document.getElementById(id);
+        const loadingOverlay = $("loading-overlay");
+        const statusText = $("status-text");
+        const subStatus = $("sub-status");
+        const videoElement = $("input-video");
+        const controlsPanel = $("controls-panel");
+        const canvasContainer = $("canvas-container");
+        const ui = {
+            hx: $("hx"), hy: $("hy"), hz: $("hz"),
+            fps: $("fps"),
+            hand: $("hand-indicator"), source: $("source-badge"),
+        };
+        let lastUIUpdate = 0, frames = 0, fpsTime = performance.now(), fpsVal = 0;
+
+        function toast(msg, ms = 2600) {
+            const t = $("toast"); t.textContent = msg; t.classList.add("show");
+            clearTimeout(t._timer); t._timer = setTimeout(() => t.classList.remove("show"), ms);
+        }
+
+        /* ================================================================== */
+        /*  INIT                                                              */
+        /* ================================================================== */
+        function init() {
+            setupThreeJS();
+            setupUI();
+            applySmoothing(smoothIndex);
+            setupTracking();
+            animate();
+        }
+
+        function setupThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+
+            camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 3000);
+
+            const dpr = Math.min(devicePixelRatio, 1.0); // conservative start; governor raises it if FPS allows
+            renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+            renderer.setSize(innerWidth, innerHeight);
+            renderer.setPixelRatio(dpr);
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+            canvasContainer.appendChild(renderer.domElement);
+
+            // worldGroup carries every environment + object so WALK can translate/rotate the whole scene
+            worldGroup = new THREE.Group();
+            scene.add(worldGroup);
+
+            objectContainer = new THREE.Group();
+            objectContainer.position.z = CONFIG.baseObjectZ;
+            worldGroup.add(objectContainer);
+
+            buildScene("grid");
+
+            addEventListener("resize", onResize);
+        }
+
+        function onResize() {
+            renderer.setSize(innerWidth, innerHeight);
+            camera.aspect = innerWidth / innerHeight;
+            camera.updateProjectionMatrix();
+        }
+
+        /* ================================================================== */
+        /*  PROCEDURAL TEXTURES (self-contained, no external assets)          */
+        /* ================================================================== */
+        function makeCanvas(size = 512) {
+            const c = document.createElement("canvas"); c.width = c.height = size;
+            return { c, ctx: c.getContext("2d") };
+        }
+        function noise(ctx, w, h, amount, alpha) {
+            const img = ctx.getImageData(0, 0, w, h), d = img.data;
+            for (let i = 0; i < d.length; i += 4) {
+                const n = (Math.random() - 0.5) * amount;
+                d[i] += n; d[i + 1] += n; d[i + 2] += n; d[i + 3] = alpha ?? d[i + 3];
+            }
+            ctx.putImageData(img, 0, 0);
+        }
+        function tex(canvas, repX = 1, repY = 1, srgb = true) {
+            const t = new THREE.CanvasTexture(canvas);
+            t.wrapS = t.wrapT = THREE.RepeatWrapping;
+            t.repeat.set(repX, repY);
+            t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+            return t;
+        }
+        function carpetTexture(base = "#b0a53f") {
+            const { c, ctx } = makeCanvas(256);
+            ctx.fillStyle = base; ctx.fillRect(0, 0, 256, 256);
+            noise(ctx, 256, 256, 34);
+            return c;
+        }
+        function wallpaperTexture(base = "#c9bd63") {
+            const { c, ctx } = makeCanvas(256);
+            ctx.fillStyle = base; ctx.fillRect(0, 0, 256, 256);
+            // faint vertical stripe pattern
+            ctx.globalAlpha = 0.08;
+            for (let x = 0; x < 256; x += 16) { ctx.fillStyle = "#000"; ctx.fillRect(x, 0, 8, 256); }
+            ctx.globalAlpha = 1; noise(ctx, 256, 256, 22);
+            // grime blotches
+            for (let i = 0; i < 30; i++) {
+                ctx.globalAlpha = Math.random() * 0.1;
+                ctx.fillStyle = "#6b5d20";
+                ctx.beginPath();
+                ctx.arc(Math.random() * 256, Math.random() * 256, Math.random() * 24, 0, 6.3);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            return c;
+        }
+        function ceilingTileTexture() {
+            const { c, ctx } = makeCanvas(256);
+            ctx.fillStyle = "#d8cf9a"; ctx.fillRect(0, 0, 256, 256);
+            ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, 256, 256);
+            noise(ctx, 256, 256, 18);
+            return c;
+        }
+        function woodTexture() {
+            const { c, ctx } = makeCanvas(512);
+            ctx.fillStyle = "#b58b56"; ctx.fillRect(0, 0, 512, 512);
+            for (let y = 0; y < 512; y += 64) {
+                ctx.fillStyle = `hsl(30, 35%, ${42 + Math.random() * 14}%)`;
+                ctx.fillRect(0, y, 512, 62);
+                ctx.strokeStyle = "rgba(60,40,20,0.5)"; ctx.strokeRect(0, y, 512, 62);
+                for (let g = 0; g < 6; g++) {
+                    ctx.strokeStyle = "rgba(80,55,30,0.15)";
+                    ctx.beginPath(); ctx.moveTo(0, y + Math.random() * 62);
+                    ctx.bezierCurveTo(170, y + Math.random() * 62, 340, y + Math.random() * 62, 512, y + Math.random() * 62);
+                    ctx.stroke();
+                }
+            }
+            noise(ctx, 512, 512, 12);
+            return c;
+        }
+        function concreteTexture(shade = "#c9cacb") {
+            const { c, ctx } = makeCanvas(512);
+            ctx.fillStyle = shade; ctx.fillRect(0, 0, 512, 512);
+            noise(ctx, 512, 512, 26);
+            for (let i = 0; i < 8; i++) {
+                ctx.globalAlpha = 0.05; ctx.fillStyle = "#000";
+                ctx.beginPath(); ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 90, 0, 6.3); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+            return c;
+        }
+        function brickTexture() {
+            const { c, ctx } = makeCanvas(512);
+            ctx.fillStyle = "#3b3b3f"; ctx.fillRect(0, 0, 512, 512);
+            const bw = 128, bh = 42;
+            for (let y = 0, row = 0; y < 512; y += bh, row++) {
+                const off = row % 2 ? bw / 2 : 0;
+                for (let x = -bw; x < 512; x += bw) {
+                    ctx.fillStyle = `hsl(15, 8%, ${20 + Math.random() * 12}%)`;
+                    ctx.fillRect(x + off + 3, y + 3, bw - 6, bh - 6);
+                }
+            }
+            noise(ctx, 512, 512, 16);
+            return c;
+        }
+
+        /* ================================================================== */
+        /*  ENVIRONMENT BUILDERS                                               */
+        /* ================================================================== */
+        function disposeNode(node) {
+            node.traverse((o) => {
+                if (o.geometry) o.geometry.dispose();
+                if (o.material) {
+                    const mats = Array.isArray(o.material) ? o.material : [o.material];
+                    mats.forEach((m) => {
+                        for (const k in m) { const v = m[k]; if (v && v.isTexture) v.dispose(); }
+                        m.dispose();
+                    });
+                }
+            });
+        }
+
+        function clearEnvironment() {
+            if (environmentGroup) {
+                worldGroup.remove(environmentGroup);
+                disposeNode(environmentGroup);
+                environmentGroup = null;
+            }
+        }
+
+        function resetLighting() {
+            // remove any lights added directly to scene
+            const toRemove = [];
+            scene.traverse((o) => { if (o.isLight) toRemove.push(o); });
+            toRemove.forEach((l) => scene.remove(l));
+        }
+
+        function buildScene(type) {
+            currentScene = type;
+            clearEnvironment();
+            resetLighting();
+
+            scene.fog = null;
+
+            environmentGroup = new THREE.Group();
+            environmentGroup.name = "environment";
+            worldGroup.add(environmentGroup);
+
+            const builders = {
+                grid: buildGrid, targets: buildGrid, void: buildVoid,
+                apartment: buildApartment, gallery: buildGallery, loft: buildLoft,
+                backrooms: buildBackrooms,
+            };
+            (builders[type] || buildGrid)();
+
+            // object placement per scene
+            if (type === "targets") { buildTargets(); }
+            else if (type === "grid" || type === "void") { loadDefaultObject(); positionObject(); }
+            else { loadDefaultObject(); /* builder already placed the container via positionObjectDefaults */ }
+        }
+
+        /* ---- Abstract: grid room ---- */
+        function buildGrid() {
+            const w = 40, h = 30, d = 100;
+            const isDark = theme === "dark";
+            const wire = isDark ? 0xffffff : 0x000000;
+            const bg = isDark ? 0x000000 : 0xffffff;
+            scene.background = new THREE.Color(bg);
+            scene.fog = new THREE.Fog(bg, 12, 110);
+
+            scene.add(light(0xffffff, 1.8, "ambient"));
+
+            const addGrid = (size, div, pos, rot) => {
+                const g = new THREE.GridHelper(size, div, wire, wire);
+                g.material.opacity = 0.4; g.material.transparent = true;
+                if (rot) g.rotation.set(rot.x || 0, rot.y || 0, rot.z || 0);
+                g.position.copy(pos); environmentGroup.add(g);
+            };
+            addGrid(w, 20, new THREE.Vector3(0, -h / 2, -d / 2));
+            addGrid(w, 20, new THREE.Vector3(0, h / 2, -d / 2));
+            addGrid(d, 50, new THREE.Vector3(-w / 2, 0, -d / 2), { z: Math.PI / 2 });
+            addGrid(d, 50, new THREE.Vector3(w / 2, 0, -d / 2), { z: Math.PI / 2 });
+            addGrid(w, 20, new THREE.Vector3(0, 0, -d), { x: Math.PI / 2 });
+        }
+
+        function buildVoid() {
+            scene.background = currentBgTexture || new THREE.Color(theme === "dark" ? 0x050505 : 0xf0f0f0);
+            scene.add(light(0xffffff, 2.0, "ambient"));
+        }
+
+        /* ---- helper to build a light ---- */
+        function light(color, intensity, type, pos) {
+            let l;
+            if (type === "ambient") l = new THREE.AmbientLight(color, intensity);
+            else if (type === "hemi") l = new THREE.HemisphereLight(color, 0x404040, intensity);
+            else if (type === "dir") { l = new THREE.DirectionalLight(color, intensity); if (pos) l.position.copy(pos); }
+            else if (type === "point") { l = new THREE.PointLight(color, intensity, 0, 2); if (pos) l.position.copy(pos); }
+            return l;
+        }
+
+        /* ---- Real estate: empty staged apartment ---- */
+        function buildApartment() {
+            scene.background = new THREE.Color(0xdfe6ee);
+            scene.fog = new THREE.Fog(0xdfe6ee, 40, 160);
+
+
+            const hemi = light(0xffffff, 0.9, "hemi"); scene.add(hemi);
+            const sun = light(0xfff2e0, 2.2, "dir", new THREE.Vector3(14, 22, 10));
+            scene.add(sun);
+
+            const roomW = 34, roomD = 70, roomH = 14;
+            const floorMat = new THREE.MeshLambertMaterial({ map: tex(woodTexture(), 6, 12), roughness: 0.7 });
+            const wallMat = new THREE.MeshLambertMaterial({ color: 0xf4f1ea, roughness: 0.95 });
+            const ceilMat = new THREE.MeshLambertMaterial({ color: 0xffffff, roughness: 1 });
+
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), floorMat);
+            floor.rotation.x = -Math.PI / 2; floor.position.set(0, -roomH / 2, -roomD / 2);
+             environmentGroup.add(floor);
+
+            const ceil = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), ceilMat);
+            ceil.rotation.x = Math.PI / 2; ceil.position.set(0, roomH / 2, -roomD / 2);
+            environmentGroup.add(ceil);
+
+            // back wall + side walls
+            const back = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+            back.position.set(0, 0, -roomD);  environmentGroup.add(back);
+            const left = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+            left.rotation.y = Math.PI / 2; left.position.set(-roomW / 2, 0, -roomD / 2);
+             environmentGroup.add(left);
+
+            // right wall with a big window opening (built from 4 border panels)
+            const winMat = new THREE.MeshBasicMaterial({ color: 0xbfe3ff }); // bright sky through glass
+            const glass = new THREE.Mesh(new THREE.PlaneGeometry(30, 8), winMat);
+            glass.rotation.y = -Math.PI / 2; glass.position.set(roomW / 2 - 0.01, 1, -roomD / 2);
+            environmentGroup.add(glass);
+            const frameMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, roughness: 0.5 });
+            [[roomD, 3, 0, roomH / 2 - 1.5], [roomD, 3, 0, -roomH / 2 + 1.5]].forEach(([w2, h2, , y]) => {
+                const p = new THREE.Mesh(new THREE.PlaneGeometry(w2, h2), wallMat);
+                p.rotation.y = -Math.PI / 2; p.position.set(roomW / 2, y, -roomD / 2); environmentGroup.add(p);
+            });
+            // window mullions
+            for (let i = -2; i <= 2; i++) {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 8, 0.3), frameMat);
+                m.position.set(roomW / 2 - 0.05, 1, -roomD / 2 + i * 6); environmentGroup.add(m);
+            }
+
+            // baseboards for realism
+            const baseMat = new THREE.MeshLambertMaterial({ color: 0xffffff, roughness: 0.6 });
+            const bb = new THREE.Mesh(new THREE.BoxGeometry(roomW, 0.6, 0.2), baseMat);
+            bb.position.set(0, -roomH / 2 + 0.3, -roomD + 0.11); environmentGroup.add(bb);
+
+            positionObjectDefaults(-roomH / 2 + 3, -18);
+        }
+
+        /* ---- Architecture: modern gallery with pedestal ---- */
+        function buildGallery() {
+            scene.background = new THREE.Color(0xf2f2f2);
+            scene.fog = new THREE.Fog(0xf2f2f2, 40, 150);
+
+
+            scene.add(light(0xffffff, 0.65, "hemi"));
+            const roomW = 30, roomD = 80, roomH = 16;
+
+            const floorMat = new THREE.MeshLambertMaterial({ map: tex(concreteTexture("#dadada"), 4, 10), roughness: 0.6 });
+            const wallMat = new THREE.MeshLambertMaterial({ color: 0xffffff, roughness: 1 });
+
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), floorMat);
+            floor.rotation.x = -Math.PI / 2; floor.position.set(0, -roomH / 2, -roomD / 2);
+             environmentGroup.add(floor);
+            const ceil = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), new THREE.MeshLambertMaterial({ color: 0xf4f4f4 }));
+            ceil.rotation.x = Math.PI / 2; ceil.position.set(0, roomH / 2, -roomD / 2); environmentGroup.add(ceil);
+            [-1, 1].forEach((s) => {
+                const wall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+                wall.rotation.y = s * Math.PI / 2; wall.position.set(s * -roomW / 2, 0, -roomD / 2);
+                 environmentGroup.add(wall);
+            });
+            const back = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+            back.position.set(0, 0, -roomD); environmentGroup.add(back);
+
+            // track lighting (spot pools + emissive strips)
+            const stripMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            for (let z = -8; z > -roomD; z -= 16) {
+                const strip = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 8), stripMat);
+                strip.rotation.x = Math.PI / 2; strip.position.set(0, roomH / 2 - 0.1, z); environmentGroup.add(strip);
+                const pl = new THREE.PointLight(0xffffff, 12, 30, 1.5);
+                pl.position.set(0, roomH / 2 - 1.5, z);
+                environmentGroup.add(pl);
+            }
+
+            // pedestal for the loaded model
+            const pedMat = new THREE.MeshLambertMaterial({ color: 0xffffff, roughness: 0.4 });
+            const ped = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 4, 24), pedMat);
+            ped.position.set(0, -roomH / 2 + 2, -18);
+            environmentGroup.add(ped);
+
+            positionObjectDefaults(-roomH / 2 + 4 + 3, -18);
+        }
+
+        /* ---- Architecture: industrial loft ---- */
+        function buildLoft() {
+            scene.background = new THREE.Color(0x1b1c1f);
+            scene.fog = new THREE.Fog(0x1b1c1f, 30, 130);
+
+
+            scene.add(light(0x8899bb, 0.5, "hemi"));
+            const sun = light(0xffffff, 1.6, "dir", new THREE.Vector3(-16, 20, 8));
+            scene.add(sun);
+
+            const roomW = 36, roomD = 76, roomH = 20;
+            const floorMat = new THREE.MeshLambertMaterial({ map: tex(concreteTexture("#4a4a4d"), 5, 10), roughness: 0.85 });
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), floorMat);
+            floor.rotation.x = -Math.PI / 2; floor.position.set(0, -roomH / 2, -roomD / 2);
+             environmentGroup.add(floor);
+
+            const brick = new THREE.MeshLambertMaterial({ map: tex(brickTexture(), 6, 3), roughness: 1 });
+            const back = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), brick);
+            back.position.set(0, 0, -roomD);  environmentGroup.add(back);
+            const leftW = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), brick);
+            leftW.rotation.y = Math.PI / 2; leftW.position.set(-roomW / 2, 0, -roomD / 2);
+             environmentGroup.add(leftW);
+
+            // steel-framed glazing on the right (factory windows)
+            const glassMat = new THREE.MeshBasicMaterial({ color: 0x9db4c9 });
+            const glass = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), glassMat);
+            glass.rotation.y = -Math.PI / 2; glass.position.set(roomW / 2, 0, -roomD / 2); environmentGroup.add(glass);
+            const steel = new THREE.MeshLambertMaterial({ color: 0x111111, roughness: 0.4, metalness: 0.6 });
+            for (let z = 0; z > -roomD; z -= 5) {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(0.25, roomH, 0.25), steel);
+                m.position.set(roomW / 2 - 0.05, 0, z); environmentGroup.add(m);
+            }
+            for (let y = -roomH / 2; y <= roomH / 2; y += 4) {
+                const m = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, roomD), steel);
+                m.position.set(roomW / 2 - 0.05, y, -roomD / 2); environmentGroup.add(m);
+            }
+
+            // exposed ceiling beams
+            const beamMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, roughness: 0.9 });
+            for (let z = -4; z > -roomD; z -= 8) {
+                const b = new THREE.Mesh(new THREE.BoxGeometry(roomW, 0.6, 0.6), beamMat);
+                b.position.set(0, roomH / 2 - 0.5, z);  environmentGroup.add(b);
+            }
+            positionObjectDefaults(-roomH / 2 + 4, -20);
+        }
+
+        /* ---- Atmosphere: The Backrooms hall ---- */
+        let backroomsFlicker = null;
+        function buildBackrooms() {
+            const wallpaper = tex(wallpaperTexture(), 8, 2);
+            const carpet = tex(carpetTexture(), 12, 40);
+            const ceilTile = tex(ceilingTileTexture(), 8, 30);
+
+            scene.background = new THREE.Color(0x9a8f42);
+            scene.fog = new THREE.Fog(0x8f8438, 8, 90);
+
+            const amb = light(0xfff6c0, 1.3, "ambient"); amb.name = "backAmb"; scene.add(amb);
+            backroomsFlicker = amb;
+
+            const hallW = 18, hallH = 9, hallD = 200;
+
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(hallW, hallD),
+                new THREE.MeshLambertMaterial({ map: carpet, roughness: 1 }));
+            floor.rotation.x = -Math.PI / 2; floor.position.set(0, -hallH / 2, -hallD / 2);
+            environmentGroup.add(floor);
+
+            const ceil = new THREE.Mesh(new THREE.PlaneGeometry(hallW, hallD),
+                new THREE.MeshLambertMaterial({ map: ceilTile, roughness: 1 }));
+            ceil.rotation.x = Math.PI / 2; ceil.position.set(0, hallH / 2, -hallD / 2);
+            environmentGroup.add(ceil);
+
+            const wallMat = new THREE.MeshLambertMaterial({ map: wallpaper, roughness: 1 });
+            [-1, 1].forEach((s) => {
+                const wall = new THREE.Mesh(new THREE.PlaneGeometry(hallD, hallH), wallMat);
+                wall.rotation.y = s * Math.PI / 2; wall.position.set(s * -hallW / 2, 0, -hallD / 2);
+                environmentGroup.add(wall);
+            });
+
+            // repeating fluorescent ceiling panels via InstancedMesh (perf-friendly)
+            const panelGeo = new THREE.PlaneGeometry(4, 1.6);
+            const panelMat = new THREE.MeshBasicMaterial({ color: 0xfffbe0 });
+            const count = Math.floor(hallD / 8);
+            const panels = new THREE.InstancedMesh(panelGeo, panelMat, count * 2);
+            const m4 = new THREE.Matrix4(); let idx = 0;
+            for (let i = 0; i < count; i++) {
+                const z = -4 - i * 8;
+                [-4, 4].forEach((x) => {
+                    m4.makeRotationX(Math.PI / 2);
+                    m4.setPosition(x, hallH / 2 - 0.05, z);
+                    panels.setMatrixAt(idx++, m4);
+                });
+            }
+            panels.instanceMatrix.needsUpdate = true;
+            environmentGroup.add(panels);
+
+            // support pillars via InstancedMesh
+            const pillarGeo = new THREE.BoxGeometry(1.2, hallH, 1.2);
+            const pillarMat = new THREE.MeshLambertMaterial({ map: wallpaper, roughness: 1 });
+            const pcount = Math.floor(hallD / 16);
+            const pillars = new THREE.InstancedMesh(pillarGeo, pillarMat, pcount * 2);
+            let pidx = 0;
+            for (let i = 0; i < pcount; i++) {
+                const z = -10 - i * 16;
+                [-hallW / 2 + 1.5, hallW / 2 - 1.5].forEach((x) => {
+                    m4.makeTranslation(x, 0, z); pillars.setMatrixAt(pidx++, m4);
+                });
+            }
+            pillars.instanceMatrix.needsUpdate = true;
+            environmentGroup.add(pillars);
+
+            positionObjectDefaults(-hallH / 2 + 3.5, -12);
+        }
+
+        /* ================================================================== */
+        /*  OBJECTS                                                            */
+        /* ================================================================== */
+        function positionObject() { objectContainer.position.set(0, 0, manualObjectZ); }
+        function positionObjectDefaults(y, z) {
+            objectContainer.position.set(0, y, z);
+            manualObjectZ = z;
+            const sl = $("input-posz"); if (sl) { sl.value = z; $("val-posz").textContent = z.toFixed(1); }
+        }
+
+        function buildTargets() {
+            clearObjectContainer();
+            const { c, ctx } = makeCanvas(256);
+            const ring = (r, col) => { ctx.beginPath(); ctx.arc(128, 128, r, 0, 6.3); ctx.fillStyle = col; ctx.fill(); };
+            ring(128, "#ff0000"); ring(90, "#ffffff"); ring(55, "#ff0000"); ring(20, "#ffffff");
+            const material = new THREE.MeshBasicMaterial({ map: tex(c), transparent: true, side: THREE.DoubleSide });
+            const geometry = new THREE.CircleGeometry(1.5, 32); // shared
+            [[-5,2,-5],[6,-3,-10],[-3,5,-18],[4,0,-25],[-7,-4,-35],[0,3,-45]].forEach(([x,y,z]) => {
+                const t = new THREE.Mesh(geometry, material); t.position.set(x, y, z); objectContainer.add(t);
+            });
+            objectContainer.position.set(0, 0, 0);
+            isRotating = false; $("rotate-toggle").checked = false;
+        }
+
+        function loadDefaultObject() {
+            clearObjectContainer();
+            const wire = theme === "dark" ? 0xffffff : 0x000000;
+            const geo = new THREE.IcosahedronGeometry(3.2, 1);
+            const mat = new THREE.MeshBasicMaterial({ color: wire, wireframe: true, transparent: true, opacity: 0.95 });
+            targetObject = new THREE.Mesh(geo, mat);
+            targetObject.userData.isDefault = true;
+            objectContainer.add(targetObject);
+        }
+
+        function clearObjectContainer() {
+            while (objectContainer.children.length) {
+                const c = objectContainer.children[0];
+                objectContainer.remove(c);
+                disposeNode(c);
+            }
+            targetObject = null;
+            gest.targetScale = objectContainer.scale.x;
+        }
+
+        /* ================================================================== */
+        /*  CAMERA / TRACKING                                                  */
+        /* ================================================================== */
+        let mouseFallbackAttached = false;
+
+        function showCamStatus(msg) {
+            const el = $("cam-status");
+            if (!el) return;
+            el.innerHTML = msg; el.style.display = msg ? "block" : "none";
+        }
+        function hideCamStatus() { showCamStatus(""); }
+
+        function insecureContextMsg() {
+            if (location.protocol === "file:") {
+                return "Browsers block the camera on files opened directly (file://). " +
+                    "Run it from a local server instead — in this folder run " +
+                    "<b>python3 -m http.server</b> then open <b>http://localhost:8000</b>. " +
+                    "(Firefox also allows file:// camera access.)";
+            }
+            return "The camera needs a secure page (https or localhost). Reload over https and retry.";
+        }
+        function cameraErrorMsg(err) {
+            const n = err && err.name;
+            if (n === "NotAllowedError" || n === "PermissionDeniedError" || n === "SecurityError")
+                return "Camera permission is blocked. Click the camera icon in the address bar → <b>Allow</b>, then press Enable/retry camera.";
+            if (n === "NotFoundError" || n === "DevicesNotFoundError" || n === "OverconstrainedError")
+                return "No usable camera found. Plug one in (or pick another from the list) and press Enable/retry camera.";
+            if (n === "NotReadableError" || n === "TrackStartError" || n === "AbortError")
+                return "The camera is busy in another app (Zoom, Meet, etc.). Close it, then press Enable/retry camera.";
+            return "Couldn't start the camera. Press Enable/retry camera, or pick a different one above.";
+        }
+
+        // Resolve as soon as the video actually has frames; never hang.
+        function waitForVideoReady(timeout = 5000) {
+            return new Promise((resolve) => {
+                if (videoElement.readyState >= 2 && videoElement.videoWidth > 0) return resolve(true);
+                let done = false;
+                const finish = (v) => { if (done) return; done = true; cleanup(); resolve(v); };
+                const onReady = () => finish(true);
+                const cleanup = () => {
+                    videoElement.removeEventListener("loadedmetadata", onReady);
+                    videoElement.removeEventListener("loadeddata", onReady);
+                    clearTimeout(timer);
+                };
+                videoElement.addEventListener("loadedmetadata", onReady);
+                videoElement.addEventListener("loadeddata", onReady);
+                const timer = setTimeout(() => finish(videoElement.videoWidth > 0), timeout);
+            });
+        }
+
+        // Try progressively looser constraints so one bad device never kills the camera.
+        async function getStream(deviceId) {
+            const tries = [];
+            if (deviceId) {
+                tries.push({ video: { deviceId: { exact: deviceId }, width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: 30, max: 30 } } });
+                tries.push({ video: { deviceId: deviceId } });
+            }
+            tries.push({ video: { width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: 30, max: 30 } } });
+            tries.push({ video: true });
+            let lastErr;
+            for (const c of tries) {
+                try { return await navigator.mediaDevices.getUserMedia(c); }
+                catch (e) { lastErr = e; }
+            }
+            throw lastErr;
+        }
+
+        async function listCameras() {
+            if (!navigator.mediaDevices?.enumerateDevices) return;
+            const select = $("camera-select");
+            let devices = [];
+            try { devices = await navigator.mediaDevices.enumerateDevices(); }
+            catch (e) { console.warn("enumerateDevices failed", e); return; }
+            const cams = devices.filter((d) => d.kind === "videoinput");
+            let active = null;
+            try { active = videoElement.srcObject?.getVideoTracks?.()[0]?.getSettings?.().deviceId || null; } catch (e) {}
+
+            select.innerHTML = "";
+            if (!cams.length) {
+                const o = document.createElement("option");
+                o.textContent = "No cameras found"; o.disabled = true; o.selected = true;
+                select.appendChild(o); return;
+            }
+            cams.forEach((d, i) => {
+                const o = document.createElement("option");
+                o.value = d.deviceId;
+                o.text = d.label || `Camera ${i + 1}`;
+                select.appendChild(o);
+            });
+            if (active) select.value = active;
+        }
+
+        async function startCamera(deviceId) {
+            if (!navigator.mediaDevices?.getUserMedia) {
+                showCamStatus(insecureContextMsg());
+                enableMouseFallback("Camera unavailable here — mouse control is on. See the panel for how to enable it.");
+                return false;
+            }
+            isVideoRunning = false;
+            statusText.textContent = "Requesting camera…";
+            try { if (videoElement.srcObject) videoElement.srcObject.getTracks().forEach((t) => t.stop()); } catch (e) {}
+
+            try {
+                const stream = await getStream(deviceId || undefined);
+                videoElement.srcObject = stream;
+                try { await videoElement.play(); } catch (e) {}
+                await waitForVideoReady();
+
+                isVideoRunning = true;
+                mouseTarget = null;                 // camera wins from now on
+                loadingOverlay.style.display = "none";
+                $("camera-container").style.opacity = "1";
+                ui.source.textContent = "FACE";
+                hideCamStatus();
+                await listCameras();                // labels/ids are reliable only after permission
+                return true;
+            } catch (err) {
+                console.error("Camera error:", err?.name, err);
+                showCamStatus(cameraErrorMsg(err));
+                enableMouseFallback("Mouse control is on until the camera is enabled.");
+                await listCameras();                // still show whatever we can enumerate
+                return false;
+            }
+        }
+
+        function enableMouseFallback(msg) {
+            loadingOverlay.style.display = "none";
+            ui.source.textContent = "MOUSE";
+            $("camera-container").style.opacity = "0.5";
+            if (msg) toast(msg, 4500);
+            if (!mouseTarget) mouseTarget = { x: 0, y: 0 };
+            if (!mouseFallbackAttached) {
+                mouseFallbackAttached = true;
+                canvasContainer.addEventListener("pointermove", (e) => {
+                    if (!mouseTarget) return;      // disabled once camera works
+                    mouseTarget.x = (e.clientX / innerWidth - 0.5) * 2;
+                    mouseTarget.y = (e.clientY / innerHeight - 0.5) * 2;
+                });
+            }
+        }
+
+        async function setupTracking() {
+            statusText.textContent = "Loading trackers…";
+            let faceMesh = null, hands = null, libsOk = true;
+            try {
+                if (typeof FaceMesh === "undefined" || typeof Hands === "undefined") throw new Error("MediaPipe blocked");
+                faceMesh = new FaceMesh({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}` });
+                faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: false, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+                faceMesh.onResults(onFaceResults);
+                hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+                hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+                hands.onResults(onHandsResults);
+            } catch (e) {
+                console.error("MediaPipe init failed", e);
+                libsOk = false;
+                enableMouseFallback("Tracking libraries didn't load (network). Mouse control is on — reload with a connection for head tracking.");
+            }
+
+            // Re-list cameras automatically whenever devices are plugged/unplugged.
+            if (navigator.mediaDevices?.addEventListener) {
+                navigator.mediaDevices.addEventListener("devicechange", () => listCameras());
+            }
+
+            // Feed MediaPipe a SMALL downscaled frame — inference cost scales with pixels.
+            // 256x192 is plenty for face landmarks at webcam distance.
+            const detCanvas = document.createElement("canvas");
+            detCanvas.width = 256; detCanvas.height = 192;
+            const detCtx = detCanvas.getContext("2d", { willReadFrequently: true });
+
+            // Detection cadence: face ~15Hz, hands ~8Hz. Head motion stays smooth because
+            // the render loop interpolates between detections (dt-corrected smoothing).
+            let faceBusy = false, handsBusy = false, lastFace = 0, lastHands = 0;
+            const loop = async () => {
+                const now = performance.now();
+                if (libsOk && isVideoRunning && videoElement.videoWidth > 0) {
+                    if (!faceBusy && now - lastFace > 66) {
+                        faceBusy = true; lastFace = now;
+                        detCtx.drawImage(videoElement, 0, 0, detCanvas.width, detCanvas.height);
+                        try { await faceMesh.send({ image: detCanvas }); } catch (e) {} finally { faceBusy = false; }
+                    }
+                    if (enableGestures && !handsBusy && now - lastHands > 125) {
+                        handsBusy = true; lastHands = now;
+                        detCtx.drawImage(videoElement, 0, 0, detCanvas.width, detCanvas.height);
+                        try { await hands.send({ image: detCanvas }); } catch (e) {} finally { handsBusy = false; }
+                    }
+                }
+                requestAnimationFrame(loop);
+            };
+            loop();
+
+            // Try the camera now. Failure is non-fatal — the retry button can recover it.
+            startCamera();
+        }
+
+        function onFaceResults(res) {
+            const lm = res.multiFaceLandmarks?.[0];
+            if (!lm) return;
+            faceEverDetected = true; lastFaceTime = performance.now();
+            ui.source.textContent = "FACE";
+
+            const nose = lm[1], le = lm[33], re = lm[263];
+            const rawX = (0.5 - nose.x) * CONFIG.movementScale;
+            const rawY = (0.5 - nose.y) * (CONFIG.movementScale * 0.7);
+            const dist = Math.hypot(re.x - le.x, re.y - le.y);
+            const t = THREE.MathUtils.clamp((dist - 0.05) / (0.16 - 0.05), 0, 1);
+            const rawZ = THREE.MathUtils.lerp(22, 12, t);
+
+            const now = performance.now();
+            headTarget.set(
+                filt.x.filter(rawX, now) * parallaxStrength,
+                filt.y.filter(rawY, now) * parallaxStrength,
+                filt.z.filter(rawZ, now)
+            );
+        }
+
+        /* ---- gesture recognition ---- */
+        function fingerExtended(lm, tip, pip, mcp, wrist) {
+            const dT = Math.hypot(lm[tip].x - lm[wrist].x, lm[tip].y - lm[wrist].y);
+            const dP = Math.hypot(lm[pip].x - lm[wrist].x, lm[pip].y - lm[wrist].y);
+            const dM = Math.hypot(lm[mcp].x - lm[wrist].x, lm[mcp].y - lm[wrist].y);
+            return dT > dP && dT > dM * 1.05;
+        }
+
+        function classifyHand(lm) {
+            const wrist = 0, midMcp = 9;
+            const scale = Math.max(1e-4, Math.hypot(lm[midMcp].x - lm[wrist].x, lm[midMcp].y - lm[wrist].y));
+            const pinchNorm = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y) / scale;
+
+            const idx = fingerExtended(lm, 8, 6, 5, 0);
+            const mid = fingerExtended(lm, 12, 10, 9, 0);
+            const rng = fingerExtended(lm, 16, 14, 13, 0);
+            const pky = fingerExtended(lm, 20, 18, 17, 0);
+            const extended = [idx, mid, rng, pky].filter(Boolean).length;
+
+            // pinch latch with hysteresis
+            if (!gest.pinchActive && pinchNorm < PINCH_ENTER) gest.pinchActive = true;
+            else if (gest.pinchActive && pinchNorm > PINCH_EXIT) gest.pinchActive = false;
+
+            // ZOOM = deliberate pinch with other fingers up (distinct from a fist)
+            if (gest.pinchActive && (mid || rng)) return Gesture.ZOOM;
+            // ROTATE = open palm (thumb/index apart)
+            if (extended >= 4 && pinchNorm > PINCH_EXIT) return Gesture.ROTATE;
+            // FIST = intentional lock
+            if (extended <= 1 && !gest.pinchActive) return Gesture.LOCK;
+            return Gesture.NONE;
+        }
+
+        function onHandsResults(res) {
+            const lm = res.multiHandLandmarks?.[0];
+            if (!lm) {
+                gest.candidate = Gesture.NONE; gest.candidateFrames = 0;
+                gest.committed = Gesture.NONE; gest.pinchActive = false; gest.prevHandX = null;
+                return;
+            }
+            const now = performance.now();
+            const candidate = classifyHand(lm);
+
+            // debounce: candidate must persist COMMIT_FRAMES before it takes over -> stops flicker/snap
+            if (candidate === gest.candidate) gest.candidateFrames++;
+            else { gest.candidate = candidate; gest.candidateFrames = 1; }
+
+            if (gest.candidateFrames >= COMMIT_FRAMES && gest.committed !== candidate) {
+                // committing to a new gesture: seed references so there's NO snap on the first frame
+                gest.committed = candidate;
+                if (candidate === Gesture.ROTATE) {
+                    gest.prevHandX = filt.handX.filter(lm[0].x, now);
+                } else if (candidate === Gesture.ZOOM) {
+                    gest.zoomStartY = filt.pinchY.filter(lm[0].y, now);
+                    gest.zoomStartScale = gest.targetScale;
+                }
+            }
+
+            if (gest.committed === Gesture.ROTATE && targetObject) {
+                const hx = filt.handX.filter(lm[0].x, now);
+                if (gest.prevHandX !== null) {
+                    let d = hx - gest.prevHandX;
+                    if (Math.abs(d) < 0.0015) d = 0;               // deadzone
+                    gest.spinVelocity += d * CONFIG.gestureSwipeGain; // feed inertia
+                }
+                gest.prevHandX = hx;
+            } else if (gest.committed === Gesture.ZOOM) {
+                const y = filt.pinchY.filter(lm[0].y, now);
+                const delta = (gest.zoomStartY - y) * CONFIG.gestureZoomGain;
+                gest.targetScale = THREE.MathUtils.clamp(gest.zoomStartScale + delta, 0.1, 10.0);
+            }
+        }
+
+        /* ================================================================== */
+        /*  UI WIRING                                                          */
+        /* ================================================================== */
+        function setupUI() {
+            $("ui-toggle-btn").addEventListener("click", () => controlsPanel.classList.toggle("hidden"));
+            $("cam-toggle").addEventListener("click", (e) => {
+                const box = $("camera-container"); box.classList.toggle("collapsed");
+                e.target.textContent = box.classList.contains("collapsed") ? "+" : "–";
+            });
+
+            $("camera-select").addEventListener("change", (e) => startCamera(e.target.value));
+            $("cam-retry").addEventListener("click", () => {
+                toast("Requesting camera…");
+                startCamera($("camera-select").value || undefined);
+            });
+            $("scene-select").addEventListener("change", (e) => {
+                if (e.target.value !== "void" && currentBgTexture) { scene.background = new THREE.Color(0x000000); }
+                buildScene(e.target.value);
+            });
+
+            $("bg-input").addEventListener("change", onBgLoad);
+            $("bg-res").addEventListener("change", (e) => {
+                bgMaxWidth = parseInt(e.target.value);
+                if (bgSourceImage) { applyBackgroundTexture(); toast("Background rescaled"); }
+            });
+            $("file-input").addEventListener("change", onFileLoad);
+            $("clear-objects").addEventListener("click", () => { clearObjectContainer(); toast("Scene cleared"); });
+
+            $("input-scale").addEventListener("input", (e) => {
+                const v = parseFloat(e.target.value); objectContainer.scale.set(v, v, v);
+                gest.targetScale = v; $("val-scale").textContent = v.toFixed(1);
+            });
+            $("input-posz").addEventListener("input", (e) => {
+                manualObjectZ = parseFloat(e.target.value);
+                objectContainer.position.z = manualObjectZ;
+                $("val-posz").textContent = manualObjectZ.toFixed(1);
+            });
+            $("input-rot-speed").addEventListener("input", (e) => {
+                objectRotationSpeed = parseFloat(e.target.value); $("val-rot-speed").textContent = objectRotationSpeed.toFixed(3);
+            });
+            $("input-parallax").addEventListener("input", (e) => {
+                parallaxStrength = parseFloat(e.target.value); $("val-parallax").textContent = parallaxStrength.toFixed(1);
+            });
+            $("input-smooth").addEventListener("input", (e) => {
+                smoothIndex = parseInt(e.target.value); applySmoothing(smoothIndex);
+                $("val-smooth").textContent = SMOOTH_PRESETS[smoothIndex].label;
+            });
+            $("gestures-toggle").addEventListener("change", (e) => {
+                enableGestures = e.target.checked;
+                if (!enableGestures) { gest.committed = Gesture.NONE; gest.spinVelocity = 0; }
+            });
+            $("theme-toggle").addEventListener("change", (e) => {
+                theme = e.target.checked ? "dark" : "light";
+                document.body.setAttribute("data-theme", theme);
+                if (currentScene === "grid" || currentScene === "targets" || currentScene === "void") buildScene(currentScene);
+            });
+            $("rotate-toggle").addEventListener("change", (e) => isRotating = e.target.checked);
+            $("fps-toggle").addEventListener("change", (e) => {
+                $("fps").parentElement.parentElement.style.display = e.target.checked ? "flex" : "none";
+            });
+
+            // mouse-drag orbit fallback (also nice as a secondary control when tracking is jittery)
+            let dragging = false, lastX = 0;
+            canvasContainer.addEventListener("pointerdown", (e) => { dragging = true; lastX = e.clientX; canvasContainer.classList.add("dragging"); });
+            addEventListener("pointerup", () => { dragging = false; canvasContainer.classList.remove("dragging"); });
+            addEventListener("pointermove", (e) => {
+                if (dragging && targetObject) { gest.spinVelocity += (e.clientX - lastX) * 0.0008 * CONFIG.gestureSwipeGain; lastX = e.clientX; }
+            });
+
+            // keyboard
+            addEventListener("keydown", (e) => {
+                if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+                if (e.key === "Tab") { e.preventDefault(); controlsPanel.classList.toggle("hidden"); }
+            });
+
+            // init labels
+            $("val-smooth").textContent = SMOOTH_PRESETS[smoothIndex].label;
+        }
+
+        let bgSourceImage = null;   // original image kept so resolution can be changed without re-upload
+        let bgMaxWidth = 2048;
+
+        function applyBackgroundTexture() {
+            if (!bgSourceImage) return;
+            const srcW = bgSourceImage.naturalWidth || bgSourceImage.width;
+            const srcH = bgSourceImage.naturalHeight || bgSourceImage.height;
+            let w = srcW, h = srcH;
+            if (bgMaxWidth > 0 && srcW > bgMaxWidth) {
+                w = bgMaxWidth;
+                h = Math.round(srcH * (bgMaxWidth / srcW));
+            }
+            const c = document.createElement("canvas");
+            c.width = w; c.height = h;
+            c.getContext("2d").drawImage(bgSourceImage, 0, 0, w, h);
+
+            const texture = new THREE.CanvasTexture(c);
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            if (currentBgTexture) currentBgTexture.dispose();
+            currentBgTexture = texture;
+            if (currentScene === "void") scene.background = texture;
+            $("val-bgres").textContent = bgMaxWidth === 0 ? `${w}px (orig)` : `${w}px`;
+        }
+
+        function onBgLoad(e) {
+            const file = e.target.files[0]; if (!file) return;
+            if (currentBgUrl) URL.revokeObjectURL(currentBgUrl);
+            currentBgUrl = URL.createObjectURL(file);
+            statusText.textContent = "Loading 360° background…"; loadingOverlay.style.display = "flex";
+            const img = new Image();
+            img.onload = () => {
+                bgSourceImage = img;
+                $("scene-select").value = "void"; buildScene("void");
+                applyBackgroundTexture();
+                loadingOverlay.style.display = "none";
+                toast(`360° background applied (${img.naturalWidth}×${img.naturalHeight} source)`);
+            };
+            img.onerror = () => { loadingOverlay.style.display = "none"; toast("Couldn't load that image"); };
+            img.src = currentBgUrl;
+            e.target.value = "";
+        }
+
+        function onFileLoad(e) {
+            const file = e.target.files[0]; if (!file) return;
+            if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+            currentObjectUrl = URL.createObjectURL(file);
+            const ext = file.name.split(".").pop().toLowerCase();
+            clearObjectContainer();
+            statusText.textContent = "Loading 3D model…"; loadingOverlay.style.display = "flex";
+
+            const onLoaded = (obj) => {
+                // traversal for future use if needed
+                const box = new THREE.Box3().setFromObject(obj);
+                const size = box.getSize(new THREE.Vector3());
+                const scl = 5 / Math.max(size.x, size.y, size.z || 1);
+                obj.scale.setScalar(scl);
+                const c = box.setFromObject(obj).getCenter(new THREE.Vector3());
+                obj.position.sub(c);
+                targetObject = obj; objectContainer.add(obj);
+                objectContainer.scale.setScalar(1); gest.targetScale = 1;
+                $("input-scale").value = 1; $("val-scale").textContent = "1.0";
+                loadingOverlay.style.display = "none"; toast("Model loaded");
+            };
+            const onErr = (err) => { console.error(err); loadingOverlay.style.display = "none"; loadDefaultObject(); toast("Couldn't load model — check it's a valid .glb/.obj"); };
+
+            if (ext === "glb" || ext === "gltf") gltfLoader.load(currentObjectUrl, (g) => onLoaded(g.scene), undefined, onErr);
+            else if (ext === "obj") objLoader.load(currentObjectUrl, onLoaded, undefined, onErr);
+            else onErr("unsupported");
+            e.target.value = "";
+        }
+
+
+
+        /* ================================================================== */
+        /*  OFF-AXIS CAMERA (the "window into another world" projection)      */
+        /* ================================================================== */
+        function updateCamera() {
+            // choose input source: face if fresh, else mouse fallback
+            const now = performance.now();
+            if (!faceEverDetected && mouseTarget) {
+                headTarget.set(-mouseTarget.x * 6 * parallaxStrength, -mouseTarget.y * 4 * parallaxStrength, 18);
+            } else if (mouseTarget && now - lastFaceTime > 1500) {
+                // face lost -> blend to mouse so it never freezes
+                headTarget.set(-mouseTarget.x * 6 * parallaxStrength, -mouseTarget.y * 4 * parallaxStrength, 18);
+            }
+
+            // dt-corrected exponential smoothing: identical feel at 15fps or 120fps.
+            // Also bridges gaps between ~15Hz detections so motion never stutters.
+            const k = 1 - Math.exp(-lastDt * 10);
+            headPos.lerp(headTarget, k);
+            camera.position.copy(headPos);
+
+            const near = camera.near;
+            const s = near / CONFIG.focalLength;
+            const aspect = innerWidth / innerHeight;
+            const wH = CONFIG.windowHeight, wW = wH * aspect;
+            const left = (-wW / 2 - headPos.x) * s, right = (wW / 2 - headPos.x) * s;
+            const top = (wH / 2 - headPos.y) * s, bottom = (-wH / 2 - headPos.y) * s;
+            camera.projectionMatrix.makePerspective(left, right, top, bottom, near, 3000);
+            camera.rotation.set(0, 0, 0);
+            camera.updateMatrixWorld();
+        }
+
+        /* ================================================================== */
+        /*  HUD                                                               */
+        /* ================================================================== */
+        function updateHUD() {
+            const now = performance.now();
+            frames++;
+            if (now - fpsTime >= 500) { fpsVal = Math.round((frames * 1000) / (now - fpsTime)); frames = 0; fpsTime = now; }
+            if (now - lastUIUpdate < 100) return;
+            lastUIUpdate = now;
+
+            ui.hx.textContent = headPos.x.toFixed(0); ui.hy.textContent = headPos.y.toFixed(0); ui.hz.textContent = headPos.z.toFixed(0);
+            ui.fps.textContent = fpsVal;
+
+            if (!enableGestures) { ui.hand.textContent = "GESTURE: OFF"; ui.hand.className = ""; return; }
+            const map = {
+                [Gesture.ROTATE]: ["GESTURE: SWIPE → ROTATE", "rotate"],
+                [Gesture.ZOOM]:   ["GESTURE: PINCH → ZOOM", "zoom"],
+                [Gesture.LOCK]:   ["GESTURE: FIST → LOCKED", "lock"],
+                [Gesture.NONE]:   ["GESTURE: READY", ""],
+            };
+            const [txt, cls] = map[gest.committed] || map[Gesture.NONE];
+            ui.hand.textContent = txt; ui.hand.className = cls;
+        }
+
+        /* ================================================================== */
+        /*  MAIN LOOP + ADAPTIVE QUALITY GOVERNOR                              */
+        /* ================================================================== */
+        let prevT = performance.now();
+        let lastDt = 1 / 60;
+
+        // Governor: if FPS sags, step render resolution down until it recovers.
+        // Steps are fractions of the display's pixel ratio.
+        const DPR_STEPS = [1.5, 1.25, 1.0, 0.8, 0.65, 0.5];
+        let dprIndex = 2; // start at 1.0x; governor upgrades on fast machines, downgrades on slow
+        let govLastCheck = performance.now(), govFrames = 0, govCooldown = 0;
+
+        function governQuality(now) {
+            govFrames++;
+            if (now - govLastCheck < 2000) return;
+            const fps = (govFrames * 1000) / (now - govLastCheck);
+            govFrames = 0; govLastCheck = now;
+            if (govCooldown > 0) { govCooldown--; return; }
+
+            if (fps < 26 && dprIndex < DPR_STEPS.length - 1) {
+                dprIndex++;
+                renderer.setPixelRatio(Math.min(devicePixelRatio, DPR_STEPS[dprIndex]));
+                renderer.setSize(innerWidth, innerHeight);
+                govCooldown = 1; // wait one window before judging again
+                console.info(`[governor] fps=${fps.toFixed(0)} → render scale ${DPR_STEPS[dprIndex]}x`);
+            } else if (fps > 55 && dprIndex > 0) {
+                dprIndex--;
+                renderer.setPixelRatio(Math.min(devicePixelRatio, DPR_STEPS[dprIndex]));
+                renderer.setSize(innerWidth, innerHeight);
+                govCooldown = 2; // be slower to upgrade than to downgrade
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const now = performance.now();
+            const dt = Math.min(0.05, (now - prevT) / 1000); prevT = now;
+            lastDt = dt;
+
+            updateCamera();
+
+            // smooth object scale toward gesture target (no snapping)
+            const cur = objectContainer.scale.x;
+            if (Math.abs(cur - gest.targetScale) > 0.001) {
+                const ns = THREE.MathUtils.lerp(cur, gest.targetScale, 0.25);
+                objectContainer.scale.setScalar(ns);
+                $("input-scale").value = ns.toFixed(2); $("val-scale").textContent = ns.toFixed(1);
+            }
+
+            // inertial gesture spin + auto-spin
+            if (targetObject) {
+                if (Math.abs(gest.spinVelocity) > 1e-5) {
+                    targetObject.rotation.y += gest.spinVelocity;
+                    gest.spinVelocity *= 0.9; // decay -> smooth glide, no snap
+                }
+                if (isRotating) targetObject.rotation.y += objectRotationSpeed;
+            }
+
+            // backrooms fluorescent buzz
+            if (backroomsFlicker && currentScene === "backrooms") {
+                backroomsFlicker.intensity = 1.3 + Math.sin(now * 0.03) * 0.03 + (Math.random() < 0.01 ? -0.4 : 0);
+            }
+
+            governQuality(now);
+            updateHUD();
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
