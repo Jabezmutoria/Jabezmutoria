@@ -293,11 +293,60 @@
   .catalogue-section > p:last-of-type {
     margin-bottom: 28px;
   }
+  .cat-search-row {
+    margin-bottom: 18px;
+  }
+  .cat-search-box {
+    position: relative;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+  }
+  .cat-search-box svg {
+    position: absolute;
+    left: 14px;
+    color: rgba(22,23,26,.4);
+    pointer-events: none;
+  }
+  .cat-search-box input {
+    width: 100%;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 11px 38px 11px 38px;
+    border-radius: 999px;
+    border: 1px solid rgba(22,23,26,.18);
+    background: #fff;
+    color: #16171a;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .cat-search-box input:focus {
+    border-color: #296e53;
+  }
+  .cat-search-clear {
+    position: absolute;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(22,23,26,.08);
+    color: #16171a;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cat-search-clear:hover {
+    background: rgba(22,23,26,.16);
+  }
   .filter-chips {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   .filter-chip {
     border: none;
@@ -315,6 +364,12 @@
     background: #296e53;
     color: #fff;
   }
+  .cat-result-row {
+    font-size: 12.5px;
+    color: rgba(22,23,26,.5);
+    margin-bottom: 10px;
+    font-variant-numeric: tabular-nums;
+  }
   .catalogue-table {
     border: 1px solid rgba(22,23,26,.15);
     border-radius: 6px;
@@ -322,7 +377,7 @@
   }
   .catalogue-header {
     display: grid;
-    grid-template-columns: 2.2fr 1.2fr 3fr;
+    grid-template-columns: 1.7fr 1.7fr 2.4fr 1.2fr;
     background: #0d0d0d;
     padding: 12px 20px;
   }
@@ -335,26 +390,76 @@
   }
   .catalogue-row {
     display: grid;
-    grid-template-columns: 2.2fr 1.2fr 3fr;
-    padding: 14px 20px;
+    grid-template-columns: 1.7fr 1.7fr 2.4fr 1.2fr;
+    padding: 12px 20px;
     border-top: 1px solid rgba(22,23,26,.1);
     transition: background .15s;
+    align-items: center;
   }
   .catalogue-row:hover {
     background: rgba(22,23,26,.02);
   }
-  .catalogue-row .artist {
+  .catalogue-row .cat-artist {
     font-size: 13.5px;
     font-weight: 600;
   }
-  .catalogue-row .genre {
+  .catalogue-row .cat-album {
     font-size: 13px;
+    color: rgba(22,23,26,.7);
+  }
+  .catalogue-row .cat-track {
+    font-size: 13px;
+    color: rgba(22,23,26,.6);
+  }
+  .catalogue-row .cat-category {
+    font-size: 12px;
     color: #296e53;
     font-weight: 600;
   }
-  .catalogue-row .notes {
+  .cat-empty {
+    padding: 40px 20px;
+    text-align: center;
+    font-size: 13.5px;
+    color: rgba(22,23,26,.45);
+  }
+  .cat-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .cat-page-btn {
+    border: 1px solid rgba(22,23,26,.15);
+    background: #fff;
+    color: #16171a;
+    font-family: 'Inter', sans-serif;
     font-size: 13px;
-    color: rgba(22,23,26,.6);
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s;
+    font-variant-numeric: tabular-nums;
+  }
+  .cat-page-btn:hover:not(:disabled) {
+    border-color: #296e53;
+    color: #296e53;
+  }
+  .cat-page-btn.active {
+    background: #296e53;
+    border-color: #296e53;
+    color: #fff;
+  }
+  .cat-page-btn:disabled {
+    opacity: .35;
+    cursor: default;
+  }
+  .cat-page-ellipsis {
+    padding: 0 4px;
+    color: rgba(22,23,26,.4);
+    font-size: 13px;
   }
   .catalogue-footnote {
     font-size: 12px;
@@ -607,68 +712,37 @@
     <div class="catalogue-section">
       <h2 class="disp">Our Catalogue</h2>
       <p>Tamasha was formed through acquisition of the archive of Polygram Records East Africa when it divested from the region in the early 1990s &mdash; at the time the premier recording and publishing label in East Africa, holding a vast archive of over 10,000 tracks from the region's most loved artists of the 1950s&ndash;1980s.</p>
-      <p>Since then the archive has been digitized and made available across CD, streaming, digital download and mobile &mdash; spanning Zilizopendwa, Rhumba and Gospel among other genres.</p>
+      <p>Since then the archive has been digitized and made available across CD, streaming, digital download and mobile &mdash; spanning Zilizopendwa, Rhumba and Gospel among other genres. The searchable index below lists <strong id="cat-total-count">&hellip;</strong> digitized tracks currently in the collection.</p>
 
-      <div class="filter-chips">
-        <button class="filter-chip active" data-filter="All" onclick="filterCatalogue('All')">All</button>
-        <button class="filter-chip" data-filter="Rhumba" onclick="filterCatalogue('Rhumba')">Rhumba</button>
-        <button class="filter-chip" data-filter="Benga" onclick="filterCatalogue('Benga')">Benga</button>
-        <button class="filter-chip" data-filter="International" onclick="filterCatalogue('International')">International</button>
-        <button class="filter-chip" data-filter="Archive" onclick="filterCatalogue('Archive')">Archive</button>
+      <div class="cat-search-row">
+        <div class="cat-search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="cat-search" placeholder="Search by artist, album or track&hellip;" autocomplete="off">
+          <button id="cat-search-clear" class="cat-search-clear" type="button" aria-label="Clear search" hidden>&times;</button>
+        </div>
+      </div>
+
+      <div class="filter-chips" id="cat-filter-chips">
+        <button class="filter-chip active" data-filter="All">All</button>
+      </div>
+
+      <div class="cat-result-row">
+        <span id="cat-result-count"></span>
       </div>
 
       <div class="catalogue-table">
         <div class="catalogue-header">
-          <div>Artist / Act</div>
-          <div>Genre</div>
-          <div>Notes</div>
+          <div>Artist</div>
+          <div>Album</div>
+          <div>Track</div>
+          <div>Category</div>
         </div>
-        <div class="catalogue-row" data-genre="Rhumba">
-          <div class="artist">Franco et le T.P. OK Jazz</div>
-          <div class="genre">Rhumba / Soukous</div>
-          <div class="notes">Congolese guitar-rhumba pioneers, part of the original Polygram East Africa archive.</div>
-        </div>
-        <div class="catalogue-row" data-genre="Rhumba">
-          <div class="artist">Tabu Ley Rochereau</div>
-          <div class="genre">Rhumba</div>
-          <div class="notes">A leading voice of Congolese rhumba, distributed across the East African catalogue.</div>
-        </div>
-        <div class="catalogue-row" data-genre="Rhumba">
-          <div class="artist">Les Mangelepa</div>
-          <div class="genre">Rhumba</div>
-          <div class="notes">Rhumba band long associated with the Nairobi music scene.</div>
-        </div>
-        <div class="catalogue-row" data-genre="Benga">
-          <div class="artist">Simba Wanyika</div>
-          <div class="genre">Benga</div>
-          <div class="notes">Kenyan band blending benga rhythms with rhumba-style guitar lines.</div>
-        </div>
-        <div class="catalogue-row" data-genre="Benga">
-          <div class="artist">Daudi Kabaka</div>
-          <div class="genre">Benga</div>
-          <div class="notes">Kenyan singer (1939&ndash;2001); known for &ldquo;African Twist,&rdquo; &ldquo;Harambee Harambee&rdquo; and &ldquo;Western Shilo.&rdquo;</div>
-        </div>
-        <div class="catalogue-row" data-genre="Benga">
-          <div class="artist">Fadhili William</div>
-          <div class="genre">Benga</div>
-          <div class="notes">Musician and songwriter (1938&ndash;2001); known for &ldquo;Kenya Nchi Yangu&rdquo; and &ldquo;Malaika.&rdquo;</div>
-        </div>
-        <div class="catalogue-row" data-genre="Archive">
-          <div class="artist">Safari Sounds Band</div>
-          <div class="genre">Archive</div>
-          <div class="notes">One of the original bands captured in the Polygram East Africa archive.</div>
-        </div>
-        <div class="catalogue-row" data-genre="International">
-          <div class="artist">Bert Kaempfert</div>
-          <div class="genre">International</div>
-          <div class="notes">German bandleader and composer; easy-listening orchestral standards.</div>
-        </div>
-        <div class="catalogue-row" data-genre="International">
-          <div class="artist">Roger Whittaker</div>
-          <div class="genre">International</div>
-          <div class="notes">International folk and pop singer-songwriter.</div>
-        </div>
+        <div id="cat-rows"></div>
+        <div id="cat-empty" class="cat-empty" hidden>No tracks match your search.</div>
       </div>
+
+      <div class="cat-pagination" id="cat-pagination"></div>
+
       <p class="catalogue-footnote">Full catalogue available as a spreadsheet on request.</p>
     </div>
   </div>
@@ -717,6 +791,7 @@
 
 </div>
 
+<script src="assets/catalogue-data.js"></script>
 <script>
   var ALBUM_IMAGES = [
     'assets/album-conseil-gratvit.png',
@@ -799,27 +874,171 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  function filterCatalogue(genre) {
-    var chips = document.querySelectorAll('.filter-chip');
+  /* ---- CATALOGUE: search + filter + pagination over CATALOGUE_DATA ---- */
+  /* each record: [artist, album, track, category, ext] */
+  var CAT_PAGE_SIZE = 50;
+  var catState = { query: '', category: 'All', page: 1 };
+  var catFiltered = [];
+  var catSearchTimer = null;
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function catInit() {
+    var data = window.CATALOGUE_DATA || [];
+    document.getElementById('cat-total-count').textContent = data.length.toLocaleString();
+
+    var categories = [];
+    for (var i = 0; i < data.length; i++) {
+      var cat = data[i][3];
+      if (categories.indexOf(cat) === -1) categories.push(cat);
+    }
+    categories.sort();
+
+    var chipWrap = document.getElementById('cat-filter-chips');
+    for (var i = 0; i < categories.length; i++) {
+      var btn = document.createElement('button');
+      btn.className = 'filter-chip';
+      btn.dataset.filter = categories[i];
+      btn.textContent = categories[i];
+      btn.onclick = (function(cat) { return function() { catSetCategory(cat); }; })(categories[i]);
+      chipWrap.appendChild(btn);
+    }
+    var allBtn = chipWrap.querySelector('[data-filter="All"]');
+    allBtn.onclick = function() { catSetCategory('All'); };
+
+    document.getElementById('cat-search').addEventListener('input', function(e) {
+      var val = e.target.value;
+      document.getElementById('cat-search-clear').hidden = !val;
+      clearTimeout(catSearchTimer);
+      catSearchTimer = setTimeout(function() {
+        catState.query = val.trim().toLowerCase();
+        catState.page = 1;
+        catRender();
+      }, 120);
+    });
+
+    document.getElementById('cat-search-clear').addEventListener('click', function() {
+      var input = document.getElementById('cat-search');
+      input.value = '';
+      input.focus();
+      this.hidden = true;
+      catState.query = '';
+      catState.page = 1;
+      catRender();
+    });
+
+    catRender();
+  }
+
+  function catSetCategory(cat) {
+    catState.category = cat;
+    catState.page = 1;
+    var chips = document.querySelectorAll('#cat-filter-chips .filter-chip');
     for (var i = 0; i < chips.length; i++) {
-      if (chips[i].dataset.filter === genre) {
-        chips[i].classList.add('active');
-      } else {
-        chips[i].classList.remove('active');
-      }
+      chips[i].classList.toggle('active', chips[i].dataset.filter === cat);
+    }
+    catRender();
+  }
+
+  function catRender() {
+    var data = window.CATALOGUE_DATA || [];
+    var q = catState.query;
+    var cat = catState.category;
+
+    if (!q && cat === 'All') {
+      catFiltered = data;
+    } else {
+      catFiltered = data.filter(function(r) {
+        if (cat !== 'All' && r[3] !== cat) return false;
+        if (!q) return true;
+        return (r[0] && r[0].toLowerCase().indexOf(q) !== -1) ||
+               (r[1] && r[1].toLowerCase().indexOf(q) !== -1) ||
+               (r[2] && r[2].toLowerCase().indexOf(q) !== -1);
+      });
     }
 
-    var rows = document.querySelectorAll('.catalogue-row');
-    for (var i = 0; i < rows.length; i++) {
-      if (genre === 'All' || rows[i].dataset.genre === genre) {
-        rows[i].style.display = '';
-      } else {
-        rows[i].style.display = 'none';
-      }
+    var total = catFiltered.length;
+    var pageCount = Math.max(1, Math.ceil(total / CAT_PAGE_SIZE));
+    if (catState.page > pageCount) catState.page = pageCount;
+    var page = catState.page;
+    var start = (page - 1) * CAT_PAGE_SIZE;
+    var pageItems = catFiltered.slice(start, start + CAT_PAGE_SIZE);
+
+    var rowsHtml = pageItems.map(function(r) {
+      return '<div class="catalogue-row">' +
+        '<div class="cat-artist">' + escapeHtml(r[0]) + '</div>' +
+        '<div class="cat-album">' + (r[1] ? escapeHtml(r[1]) : '&mdash;') + '</div>' +
+        '<div class="cat-track">' + escapeHtml(r[2]) + '</div>' +
+        '<div class="cat-category">' + escapeHtml(r[3]) + '</div>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('cat-rows').innerHTML = rowsHtml;
+    document.getElementById('cat-empty').hidden = total !== 0;
+
+    var resultEl = document.getElementById('cat-result-count');
+    if (total === 0) {
+      resultEl.textContent = '';
+    } else {
+      var from = start + 1;
+      var to = Math.min(start + CAT_PAGE_SIZE, total);
+      resultEl.textContent = 'Showing ' + from.toLocaleString() + '–' + to.toLocaleString() + ' of ' + total.toLocaleString() + ' tracks';
     }
+
+    catRenderPagination(page, pageCount);
+  }
+
+  function catGoToPage(p) {
+    catState.page = p;
+    catRender();
+    document.querySelector('.catalogue-table').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function catRenderPagination(page, pageCount) {
+    var wrap = document.getElementById('cat-pagination');
+    wrap.innerHTML = '';
+    if (pageCount <= 1) return;
+
+    function makeBtn(label, target, disabled, active) {
+      var b = document.createElement('button');
+      b.className = 'cat-page-btn' + (active ? ' active' : '');
+      b.textContent = label;
+      b.disabled = !!disabled;
+      if (!disabled) b.onclick = function() { catGoToPage(target); };
+      return b;
+    }
+
+    wrap.appendChild(makeBtn('Prev', page - 1, page === 1));
+
+    var pagesToShow = [];
+    pagesToShow.push(1);
+    for (var p = page - 1; p <= page + 1; p++) {
+      if (p > 1 && p < pageCount) pagesToShow.push(p);
+    }
+    if (pageCount > 1) pagesToShow.push(pageCount);
+    pagesToShow = pagesToShow.filter(function(v, i, a) { return a.indexOf(v) === i; }).sort(function(a, b) { return a - b; });
+
+    var prev = null;
+    pagesToShow.forEach(function(p) {
+      if (prev !== null && p - prev > 1) {
+        var el = document.createElement('span');
+        el.className = 'cat-page-ellipsis';
+        el.textContent = '…';
+        wrap.appendChild(el);
+      }
+      wrap.appendChild(makeBtn(String(p), p, false, p === page));
+      prev = p;
+    });
+
+    wrap.appendChild(makeBtn('Next', page + 1, page === pageCount));
   }
 
   initHero();
+  catInit();
 </script>
 
 </body>
