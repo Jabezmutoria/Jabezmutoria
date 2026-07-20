@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tamasha Corporation Limited</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #faf8f3;
+    font-family: 'Inter', sans-serif;
+    color: #16171a;
+  }
+  a { color: #1bb0ce; }
+  a:hover { color: #14879e; }
+  .disp { font-family: 'Space Grotesk', sans-serif; }
+
+  .site-wrapper {
+    max-width: 1440px;
+    margin: 0 auto;
+    background: #faf8f3;
+  }
+
+  /* UTILITY BAR */
+  .utility-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 40px;
+    background: #0d0d0d;
+  }
+  .utility-bar .company-name {
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .utility-bar .social-links {
+    display: flex;
+    gap: 14px;
+  }
+  .utility-bar .social-links a {
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    opacity: .85;
+  }
+  .utility-bar .social-links a:hover { opacity: 1; }
+
+  /* NAV */
+  .main-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    background: #faf8f3;
+    border-bottom: 1px solid rgba(22,23,26,.1);
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+  }
+  .nav-brand img {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .nav-brand span {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 34px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .nav-links span {
+    cursor: pointer;
+    padding-bottom: 4px;
+    border-bottom: 2px solid transparent;
+    color: rgba(22,23,26,.6);
+    font-weight: 500;
+    transition: all .2s;
+  }
+  .nav-links span.active {
+    border-bottom-color: #296e53;
+    color: #16171a;
+    font-weight: 700;
+  }
+  .nav-cta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border-radius: 999px;
+    background: #296e53;
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background .2s;
+  }
+  .nav-cta:hover {
+    background: #1a4d3a;
+    color: #fff;
+  }
+  .nav-cta svg { flex-shrink: 0; }
+
+  /* HERO GRID */
+  .hero-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(2, 180px);
+    gap: 4px;
+    padding: 4px 40px 0;
+  }
+  .hero-cell {
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-cell.large {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+  .hero-cell img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 1.2s ease, transform 6s ease;
+    transform: scale(1);
+  }
+  .hero-cell img.active {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+
+  /* ABOUT */
+  .about-section {
+    padding: 56px 40px 8px;
+  }
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: rgba(22,23,26,.5);
+    margin-bottom: 20px;
+  }
+  .about-section h2 {
+    font-size: 26px;
+    margin: 0 0 16px;
+  }
+  .about-section p {
+    font-size: 14px;
+    line-height: 1.75;
+    color: rgba(22,23,26,.7);
+    margin: 0 0 14px;
+  }
+
+  /* MISSION */
+  .mission-section {
+    padding: 44px 40px 20px;
+    max-width: 680px;
+  }
+  .mission-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #296e53;
+    margin-bottom: 10px;
+  }
+  .mission-section p {
+    font-size: 24px;
+    line-height: 1.45;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  /* VALUES GRID */
+  .values-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    margin: 48px 40px;
+    background: rgba(22,23,26,.1);
+    border: 1px solid rgba(22,23,26,.1);
+  }
+  .value-card {
+    background: #faf8f3;
+    padding: 28px 26px;
+  }
+  .value-card h3 {
+    font-weight: 700;
+    font-size: 15px;
+    margin: 0 0 8px;
+  }
+  .value-card p {
+    font-size: 13.5px;
+    color: rgba(22,23,26,.65);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* YOUTUBE SECTION */
+  .youtube-section {
+    padding: 8px 40px 48px;
+  }
+  .youtube-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .youtube-header h2 {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .youtube-header a {
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .youtube-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .youtube-thumb {
+    position: relative;
+    text-decoration: none;
+    display: block;
+  }
+  .youtube-thumb img {
+    width: 100%;
+    aspect-ratio: 16/9;
+    border-radius: 6px;
+    object-fit: cover;
+    background: rgba(22,23,26,.08);
+  }
+  .youtube-thumb .play-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 48px;
+    height: 48px;
+    background: rgba(0,0,0,.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .youtube-thumb:hover .play-overlay { opacity: 1; }
+
+  /* CATALOGUE */
+  .catalogue-section {
+    padding: 44px 40px 60px;
+  }
+  .catalogue-section h2 {
+    font-size: 32px;
+    margin: 0 0 14px;
+  }
+  .catalogue-section > p {
+    font-size: 14px;
+    color: rgba(22,23,26,.65);
+    margin: 0 0 10px;
+    max-width: 640px;
+    line-height: 1.7;
+  }
+  .catalogue-section > p:last-of-type {
+    margin-bottom: 28px;
+  }
+  .filter-chips {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .filter-chip {
+    border: none;
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: rgba(22,23,26,.06);
+    color: #16171a;
+    transition: all .2s;
+  }
+  .filter-chip.active {
+    background: #296e53;
+    color: #fff;
+  }
+  .catalogue-table {
+    border: 1px solid rgba(22,23,26,.15);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .catalogue-header {
+    display: grid;
+    grid-template-columns: 2.2fr 1.2fr 3fr;
+    background: #0d0d0d;
+    padding: 12px 20px;
+  }
+  .catalogue-header div {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .catalogue-row {
+    display: grid;
+    grid-template-columns: 2.2fr 1.2fr 3fr;
+    padding: 14px 20px;
+    border-top: 1px solid rgba(22,23,26,.1);
+    transition: background .15s;
+  }
+  .catalogue-row:hover {
+    background: rgba(22,23,26,.02);
+  }
+  .catalogue-row .artist {
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .catalogue-row .genre {
+    font-size: 13px;
+    color: #296e53;
+    font-weight: 600;
+  }
+  .catalogue-row .notes {
+    font-size: 13px;
+    color: rgba(22,23,26,.6);
+  }
+  .catalogue-footnote {
+    font-size: 12px;
+    color: rgba(22,23,26,.45);
+    margin-top: 14px;
+  }
+
+  /* CONTACT */
+  .contact-section {
+    padding: 44px 40px 60px;
+  }
+  .contact-section h2 {
+    font-size: 32px;
+    margin: 0 0 28px;
+  }
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+  }
+  .contact-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #296e53;
+    margin-bottom: 8px;
+  }
+  .contact-info p {
+    font-size: 14px;
+    color: rgba(22,23,26,.7);
+    line-height: 1.7;
+    margin: 0 0 24px;
+  }
+  .contact-social {
+    display: flex;
+    gap: 10px;
+  }
+  .contact-social a {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(22,23,26,.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    text-decoration: none;
+    color: #16171a;
+    transition: all .2s;
+  }
+  .contact-social a:hover {
+    background: #296e53;
+    color: #fff;
+    border-color: #296e53;
+  }
+  .contact-photo {
+    width: 100%;
+    aspect-ratio: 4/3;
+    border-radius: 6px;
+    object-fit: cover;
+    background: rgba(22,23,26,.06);
+  }
+
+  /* FOOTER */
+  .site-footer {
+    border-top: 1px solid rgba(22,23,26,.1);
+    padding: 36px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-text {
+    font-size: 12.5px;
+    color: rgba(22,23,26,.55);
+  }
+  .footer-social {
+    display: flex;
+    gap: 10px;
+  }
+  .footer-social a {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(22,23,26,.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-decoration: none;
+    color: #16171a;
+    transition: all .2s;
+  }
+  .footer-social a:hover {
+    background: #296e53;
+    color: #fff;
+    border-color: #296e53;
+  }
+
+  /* PAGE TRANSITIONS */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .utility-bar, .main-nav, .about-section, .mission-section,
+    .youtube-section, .catalogue-section, .contact-section, .site-footer {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    .hero-grid { padding: 4px 20px 0; }
+    .values-grid { margin-left: 20px; margin-right: 20px; }
+
+    .hero-grid {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 200px 120px 120px;
+    }
+    .values-grid {
+      grid-template-columns: 1fr;
+    }
+    .youtube-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .contact-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    .catalogue-header, .catalogue-row {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+    .nav-links { gap: 18px; }
+    .main-nav { flex-wrap: wrap; gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="site-wrapper">
+
+  <!-- UTILITY BAR -->
+  <div class="utility-bar">
+    <span class="company-name">Tamasha Corporation Limited</span>
+    <div class="social-links">
+      <a href="https://www.facebook.com/tamasharecords.youcanfeelthebeat" target="_blank" rel="noopener">FB</a>
+      <a href="https://twitter.com/TamashaRecords" target="_blank" rel="noopener">X</a>
+      <a href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">YT</a>
+      <a href="https://www.linkedin.com/in/tamasha-corporation-717075191/" target="_blank" rel="noopener">IN</a>
+      <a href="https://www.instagram.com/tamasharecords/" target="_blank" rel="noopener">IG</a>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav class="main-nav">
+    <a class="nav-brand" href="#" onclick="navigate('home'); return false;">
+      <img src="assets/tamasha-logo.png" alt="Tamasha Logo">
+      <span class="disp">Tamasha</span>
+    </a>
+    <div class="nav-links">
+      <span class="active" data-page="home" onclick="navigate('home')">Home</span>
+      <span data-page="catalogue" onclick="navigate('catalogue')">Catalogue</span>
+      <span data-page="contact" onclick="navigate('contact')">Contact</span>
+    </div>
+    <a class="nav-cta" href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M9 7l9 5-9 5V7z"></path></svg>
+      Watch on YouTube
+    </a>
+  </nav>
+
+  <!-- HOME PAGE -->
+  <div id="page-home" class="page active">
+
+    <!-- HERO -->
+    <div class="hero-grid">
+      <div class="hero-cell large" id="hero-0"></div>
+      <div class="hero-cell" id="hero-1"></div>
+      <div class="hero-cell" id="hero-2"></div>
+      <div class="hero-cell" id="hero-3"></div>
+      <div class="hero-cell" id="hero-4"></div>
+    </div>
+
+    <!-- ABOUT US -->
+    <div class="about-section">
+      <div class="disp section-label">About Us</div>
+      <div>
+        <h2 class="disp">Our Story</h2>
+        <p>Tamasha Corporation Limited, based in Nairobi, Kenya, holds a vast catalogue of both local and international music rocking the airwaves. Over the years the company has interacted with the music of internationally known artists &mdash; Franco, Tabu Ley, Simba Wanyika, Bert Kaempfert, and Roger Whittaker, among many more.</p>
+        <p style="margin-bottom:0">We are situated at The Mall, Westlands &mdash; a landmark multi-tenanted shopping centre at the junction of Waiyaki Way and Ring Road, Westlands, Nairobi.</p>
+      </div>
+    </div>
+
+    <!-- MISSION -->
+    <div class="mission-section">
+      <div class="mission-label">Our Mission</div>
+      <p class="disp">Our mission is to preserve and distribute the best of African music &amp; cultural content to the world.</p>
+    </div>
+
+    <!-- VALUES -->
+    <div class="values-grid">
+      <div class="value-card">
+        <h3 class="disp">Distribute</h3>
+        <p>Getting African music onto airwaves and platforms worldwide, electronically.</p>
+      </div>
+      <div class="value-card">
+        <h3 class="disp">Protect</h3>
+        <p>Royalties and rights management for the artists and catalogues we represent.</p>
+      </div>
+      <div class="value-card">
+        <h3 class="disp">Connect</h3>
+        <p>A Nairobi home base linking artists, partner labels, and the wider community.</p>
+      </div>
+    </div>
+
+    <!-- YOUTUBE -->
+    <div class="youtube-section">
+      <div class="youtube-header">
+        <h2 class="disp">Latest on YouTube</h2>
+        <a href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">Watch more &rarr;</a>
+      </div>
+      <div class="youtube-grid">
+        <a class="youtube-thumb" href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">
+          <img src="assets/album-franco.png" alt="Video thumbnail">
+          <div class="play-overlay">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M9 7l9 5-9 5V7z"></path></svg>
+          </div>
+        </a>
+        <a class="youtube-thumb" href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">
+          <img src="assets/album-malaika.png" alt="Video thumbnail">
+          <div class="play-overlay">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M9 7l9 5-9 5V7z"></path></svg>
+          </div>
+        </a>
+        <a class="youtube-thumb" href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">
+          <img src="assets/album-bilombe.png" alt="Video thumbnail">
+          <div class="play-overlay">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M9 7l9 5-9 5V7z"></path></svg>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATALOGUE PAGE -->
+  <div id="page-catalogue" class="page">
+    <div class="catalogue-section">
+      <h2 class="disp">Our Catalogue</h2>
+      <p>Tamasha was formed through acquisition of the archive of Polygram Records East Africa when it divested from the region in the early 1990s &mdash; at the time the premier recording and publishing label in East Africa, holding a vast archive of over 10,000 tracks from the region's most loved artists of the 1950s&ndash;1980s.</p>
+      <p>Since then the archive has been digitized and made available across CD, streaming, digital download and mobile &mdash; spanning Zilizopendwa, Rhumba and Gospel among other genres.</p>
+
+      <div class="filter-chips">
+        <button class="filter-chip active" data-filter="All" onclick="filterCatalogue('All')">All</button>
+        <button class="filter-chip" data-filter="Rhumba" onclick="filterCatalogue('Rhumba')">Rhumba</button>
+        <button class="filter-chip" data-filter="Benga" onclick="filterCatalogue('Benga')">Benga</button>
+        <button class="filter-chip" data-filter="International" onclick="filterCatalogue('International')">International</button>
+        <button class="filter-chip" data-filter="Archive" onclick="filterCatalogue('Archive')">Archive</button>
+      </div>
+
+      <div class="catalogue-table">
+        <div class="catalogue-header">
+          <div>Artist / Act</div>
+          <div>Genre</div>
+          <div>Notes</div>
+        </div>
+        <div class="catalogue-row" data-genre="Rhumba">
+          <div class="artist">Franco et le T.P. OK Jazz</div>
+          <div class="genre">Rhumba / Soukous</div>
+          <div class="notes">Congolese guitar-rhumba pioneers, part of the original Polygram East Africa archive.</div>
+        </div>
+        <div class="catalogue-row" data-genre="Rhumba">
+          <div class="artist">Tabu Ley Rochereau</div>
+          <div class="genre">Rhumba</div>
+          <div class="notes">A leading voice of Congolese rhumba, distributed across the East African catalogue.</div>
+        </div>
+        <div class="catalogue-row" data-genre="Rhumba">
+          <div class="artist">Les Mangelepa</div>
+          <div class="genre">Rhumba</div>
+          <div class="notes">Rhumba band long associated with the Nairobi music scene.</div>
+        </div>
+        <div class="catalogue-row" data-genre="Benga">
+          <div class="artist">Simba Wanyika</div>
+          <div class="genre">Benga</div>
+          <div class="notes">Kenyan band blending benga rhythms with rhumba-style guitar lines.</div>
+        </div>
+        <div class="catalogue-row" data-genre="Benga">
+          <div class="artist">Daudi Kabaka</div>
+          <div class="genre">Benga</div>
+          <div class="notes">Kenyan singer (1939&ndash;2001); known for &ldquo;African Twist,&rdquo; &ldquo;Harambee Harambee&rdquo; and &ldquo;Western Shilo.&rdquo;</div>
+        </div>
+        <div class="catalogue-row" data-genre="Benga">
+          <div class="artist">Fadhili William</div>
+          <div class="genre">Benga</div>
+          <div class="notes">Musician and songwriter (1938&ndash;2001); known for &ldquo;Kenya Nchi Yangu&rdquo; and &ldquo;Malaika.&rdquo;</div>
+        </div>
+        <div class="catalogue-row" data-genre="Archive">
+          <div class="artist">Safari Sounds Band</div>
+          <div class="genre">Archive</div>
+          <div class="notes">One of the original bands captured in the Polygram East Africa archive.</div>
+        </div>
+        <div class="catalogue-row" data-genre="International">
+          <div class="artist">Bert Kaempfert</div>
+          <div class="genre">International</div>
+          <div class="notes">German bandleader and composer; easy-listening orchestral standards.</div>
+        </div>
+        <div class="catalogue-row" data-genre="International">
+          <div class="artist">Roger Whittaker</div>
+          <div class="genre">International</div>
+          <div class="notes">International folk and pop singer-songwriter.</div>
+        </div>
+      </div>
+      <p class="catalogue-footnote">Full catalogue available as a spreadsheet on request.</p>
+    </div>
+  </div>
+
+  <!-- CONTACT PAGE -->
+  <div id="page-contact" class="page">
+    <div class="contact-section">
+      <h2 class="disp">Contact Us</h2>
+      <div class="contact-grid">
+        <div class="contact-info">
+          <div class="contact-label">Address</div>
+          <p>Tamasha Corporation Limited<br>The Mall, Westlands<br>Junction of Waiyaki Way &amp; Ring Road<br>Nairobi, Kenya</p>
+
+          <div class="contact-label">Email</div>
+          <p><a href="mailto:info@tamashacorporation.com">info@tamashacorporation.com</a></p>
+
+          <div class="contact-label">Follow</div>
+          <div class="contact-social">
+            <a href="https://www.facebook.com/tamasharecords.youcanfeelthebeat" target="_blank" rel="noopener">FB</a>
+            <a href="https://twitter.com/TamashaRecords" target="_blank" rel="noopener">X</a>
+            <a href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">YT</a>
+            <a href="https://www.instagram.com/tamasharecords/" target="_blank" rel="noopener">IG</a>
+            <a href="https://www.linkedin.com/in/tamasha-corporation-717075191/" target="_blank" rel="noopener">IN</a>
+          </div>
+        </div>
+        <div>
+          <div class="contact-photo" style="display:flex;align-items:center;justify-content:center;color:rgba(22,23,26,.35);font-size:14px;">
+            Office / Westlands photo
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="footer-text">Tamasha Corporation Limited &middot; The Mall, Westlands, Nairobi</div>
+    <div class="footer-social">
+      <a href="https://www.facebook.com/tamasharecords.youcanfeelthebeat" target="_blank" rel="noopener">FB</a>
+      <a href="https://twitter.com/TamashaRecords" target="_blank" rel="noopener">X</a>
+      <a href="https://www.youtube.com/channel/UCvqkGCn9t00_-Rs-K9eqEiw" target="_blank" rel="noopener">YT</a>
+      <a href="https://www.instagram.com/tamasharecords/" target="_blank" rel="noopener">IG</a>
+      <a href="https://www.linkedin.com/in/tamasha-corporation-717075191/" target="_blank" rel="noopener">IN</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  var ALBUM_IMAGES = [
+    'assets/album-conseil-gratvit.png',
+    'assets/album-2nd-anniversary.png',
+    'assets/album-african-fiesta.png',
+    'assets/album-marie-louise.png',
+    'assets/album-shilingi.jpg',
+    'assets/album-barua.jpg',
+    'assets/album-franco.png',
+    'assets/album-bilombe.png',
+    'assets/album-mondea.png',
+    'assets/album-malaika.png'
+  ];
+
+  var HERO_GROUPS = [
+    [0, 5],
+    [1, 6],
+    [2, 7],
+    [3, 8],
+    [4, 9]
+  ];
+
+  var heroTick = 0;
+  var heroInterval;
+
+  function initHero() {
+    for (var g = 0; g < HERO_GROUPS.length; g++) {
+      var cell = document.getElementById('hero-' + g);
+      if (!cell) continue;
+      cell.innerHTML = '';
+      var group = HERO_GROUPS[g];
+      for (var i = 0; i < group.length; i++) {
+        var img = document.createElement('img');
+        img.src = ALBUM_IMAGES[group[i]];
+        img.alt = 'Album cover';
+        img.dataset.index = i;
+        cell.appendChild(img);
+      }
+    }
+    updateHero();
+    heroInterval = setInterval(function() {
+      heroTick++;
+      updateHero();
+    }, 3200);
+  }
+
+  function updateHero() {
+    for (var g = 0; g < HERO_GROUPS.length; g++) {
+      var cell = document.getElementById('hero-' + g);
+      if (!cell) continue;
+      var group = HERO_GROUPS[g];
+      var phase = Math.floor((heroTick + g) / 1) % group.length;
+      var imgs = cell.querySelectorAll('img');
+      for (var i = 0; i < imgs.length; i++) {
+        if (parseInt(imgs[i].dataset.index) === phase) {
+          imgs[i].classList.add('active');
+        } else {
+          imgs[i].classList.remove('active');
+        }
+      }
+    }
+  }
+
+  function navigate(page) {
+    var pages = document.querySelectorAll('.page');
+    for (var i = 0; i < pages.length; i++) {
+      pages[i].classList.remove('active');
+    }
+    document.getElementById('page-' + page).classList.add('active');
+
+    var navSpans = document.querySelectorAll('.nav-links span');
+    for (var i = 0; i < navSpans.length; i++) {
+      if (navSpans[i].dataset.page === page) {
+        navSpans[i].classList.add('active');
+      } else {
+        navSpans[i].classList.remove('active');
+      }
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function filterCatalogue(genre) {
+    var chips = document.querySelectorAll('.filter-chip');
+    for (var i = 0; i < chips.length; i++) {
+      if (chips[i].dataset.filter === genre) {
+        chips[i].classList.add('active');
+      } else {
+        chips[i].classList.remove('active');
+      }
+    }
+
+    var rows = document.querySelectorAll('.catalogue-row');
+    for (var i = 0; i < rows.length; i++) {
+      if (genre === 'All' || rows[i].dataset.genre === genre) {
+        rows[i].style.display = '';
+      } else {
+        rows[i].style.display = 'none';
+      }
+    }
+  }
+
+  initHero();
+</script>
+
+</body>
+</html>
